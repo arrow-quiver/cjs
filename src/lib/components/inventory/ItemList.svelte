@@ -161,7 +161,7 @@
 			action={readOnly ? undefined : addAnItem}
 		/>
 	{:else if items.length === 0}
-		<NoMatches class="mt-8" message={emptyCopy(filter)} />
+		<NoMatches class="mt-8" message={emptyCopy(filter, counts.archived > 0)} />
 	{:else}
 		<div class="hidden lg:block">
 			<ItemTable {items} {sort} {direction} {sortHref} />
