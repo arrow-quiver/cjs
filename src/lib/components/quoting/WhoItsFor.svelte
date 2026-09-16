@@ -13,7 +13,8 @@
 	 * make the address book slowly wrong, and silent write-back would let a one-off correction
 	 * on one document rewrite every other one.
 	 */
-	import { Field, Input, Select, SelectContent, SelectItem, SelectTrigger } from '$lib/ui';
+	import { Field, Input } from '$lib/ui';
+	import { CustomerField } from '$lib/components/customers';
 	import type { EditorState } from '$lib/core/quoting';
 
 	let {
@@ -26,38 +27,23 @@
 		/** Choosing a different client re-takes the whole snapshot, server-side. */
 		onclientchange: (customerId: string) => void;
 	} = $props();
-
-	const selectedName = $derived(
-		customers.find((c) => c.id === state.customerId)?.name ?? state.name
-	);
 </script>
 
 <section>
 	<h2 class="text-eyebrow text-ink-muted uppercase">Who it's for</h2>
 
 	<div class="mt-3 grid gap-4 sm:grid-cols-2">
-		<Field label="Client" id="quote-client">
-			{#snippet control(field)}
-				<Select
-					type="single"
-					value={state.customerId ?? ''}
-					onValueChange={(value) => {
-						if (!value || value === state.customerId) return;
-						state.customerId = value;
-						onclientchange(value);
-					}}
-				>
-					<SelectTrigger {...field} class="w-full">
-						{selectedName || 'Choose a client'}
-					</SelectTrigger>
-					<SelectContent>
-						{#each customers as customer (customer.id)}
-							<SelectItem value={customer.id} label={customer.name}>{customer.name}</SelectItem>
-						{/each}
-					</SelectContent>
-				</Select>
-			{/snippet}
-		</Field>
+		<CustomerField
+			id="quote-client"
+			{customers}
+			value={state.customerId}
+			currentName={state.name || null}
+			onchoose={(customer) => {
+				if (customer.id === state.customerId) return;
+				state.customerId = customer.id;
+				onclientchange(customer.id);
+			}}
+		/>
 
 		<Field label="Send to" id="quote-send-to">
 			{#snippet control(field)}

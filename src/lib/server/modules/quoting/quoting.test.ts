@@ -32,6 +32,7 @@ import { customer as customerTable } from '$lib/server/core/db/schema/core';
 import { toBusiness, type Business } from '$lib/server/core/db/map';
 import type { Tx } from '$lib/server/core/db/tx';
 import { business as businessTable } from '$lib/server/core/db/schema/core';
+import { ClientNotFound } from '$lib/server/core/customers';
 import { createDraft, promoteCustomerFields, saveDraft } from './effects';
 import { loadQuote } from './queries';
 import type { DraftPatch, LinePatch } from '$lib/core/quoting/wire';
@@ -377,6 +378,29 @@ describe('a customer override', () => {
 		expect(record.vatNumber).toBe('4220110099');
 		// Not promoted, not written. Promotion is a closed list, chosen by the person.
 		expect(record.city).toBeNull();
+	});
+});
+
+describe('a client this business cannot see', () => {
+	/**
+	 * Before 0012 the autosave wrote any client id it was given: the snapshot copy found nothing
+	 * under row security and quietly skipped, and the single-column key accepted the link. Now the
+	 * composite key would refuse it as a bare constraint error, so the save refuses first, in words.
+	 */
+	it('is refused before anything is written, in a sentence a person can act on', async () => {
+		const elsewhere = await createBusiness((await createUser('Bob Elsewhere')).id, 'Elsewhere');
+		const theirs = await createCustomer(elsewhere, 'Not on these books');
+
+		const business = await asThornhill((tx) => loadBusiness(tx, thornhill.id));
+		const id = await asThornhill((tx) => createDraft(tx, business, { customerId }));
+
+		const message = await messageFromRejection(
+			asThornhill((tx) => saveDraft(tx, thornhill.id, id, patch({ customerId: theirs })))
+		);
+		expect(message).toBe(new ClientNotFound().message);
+
+		const [row] = await asThornhill((tx) => tx.select().from(quote).where(eq(quote.id, id)));
+		expect(row.customerId).toBe(customerId);
 	});
 });
 

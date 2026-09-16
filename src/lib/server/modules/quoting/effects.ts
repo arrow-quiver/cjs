@@ -22,6 +22,7 @@
  * the header. The application role holds no DELETE, so this is not a convention that could be
  * forgotten — it is the only thing that compiles.
  */
+import { ClientNotFound } from '$lib/server/core/customers';
 import { and, eq, inArray, isNull, notInArray, sql } from 'drizzle-orm';
 import { VAT_POLICY } from '$lib/core/money';
 import { STANDARD_VAT_RATE_PPM, addDays, todayIn } from '$lib/core/quoting';
@@ -102,7 +103,9 @@ export async function createDraft(
  */
 async function copyCustomerOntoQuote(tx: Tx, quoteId: string, customerId: string): Promise<void> {
 	const [c] = await tx.select().from(customerTable).where(eq(customerTable.id, customerId));
-	if (!c) return;
+	// Not visible means not this business's. Refused here, before the header is written with an id
+	// the composite key would reject as a bare constraint error.
+	if (!c) throw new ClientNotFound();
 
 	await tx
 		.update(quote)

@@ -67,7 +67,7 @@
 import { index, integer, pgTable, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
 import { JOB_PRIORITIES, JOB_STATUSES } from '$lib/core/jobs';
 import { businessId, id, notBlank, oneOf, timestamps } from '../base';
-import { business, customer } from './core';
+import { business } from './core';
 
 /**
  * A piece of work. "Kitchen fit, Rondebosch" — `JOB-0001`.
@@ -99,31 +99,13 @@ export const job = pgTable(
 		businessId: businessId().references(() => business.businessId, { onDelete: 'restrict' }),
 
 		/**
-		 * THIS KEY IS SINGLE-COLUMN, AND THAT IS NOT THE GUARANTEE THE HEADER CLAIMS FOR JOBS.
-		 *
-		 * The argument above — that Postgres checks referential integrity with row security
-		 * bypassed, so only a composite key can stop a cross-tenant link — applies to this
-		 * column exactly as it applies to `quoting_quote.job_id`. It is not answered the same
-		 * way, and the difference is worth naming rather than leaving for somebody to infer
-		 * from the absence of a second column: the composite form needs a
-		 * `(business_id, id)` unique on the REFERENCED table, `core_job` declares one below for
-		 * precisely that reason, and `core_customer` has only its primary key. Adding one is a
-		 * change to a table this ticket does not otherwise touch.
-		 *
-		 * So the database will currently accept a job in business A naming business B's
-		 * customer. Nothing in the product can produce one: the only writer is `createJob`, and
-		 * its one caller takes the customer straight off the accepted quote row inside the same
-		 * tenant transaction. The gap is what a future writer must not assume away — a customer
-		 * picker on SPA-23's screens is checked by the code that fills it and by nothing else,
-		 * until `core_customer` gains the unique and this key becomes
-		 * `(business_id, customer_id) -> core_customer (business_id, id)`.
-		 *
-		 * `quoting_quote.customer_id` is the same shape for the same reason, which is why fixing
-		 * this belongs in one migration that fixes both rather than here.
+		 * The client this work is for. Composite, `(business_id, customer_id) -> core_customer
+		 * (business_id, id)`, hand-written in `drizzle/0012_customer_keys.sql` for the reason the
+		 * header gives for every key on this table: Postgres checks referential integrity with row
+		 * security bypassed, so only a composite key stops a job in business A naming business B's
+		 * customer. Until 0012 this one was single-column and held by the code that filled it.
 		 */
-		customerId: uuid()
-			.notNull()
-			.references(() => customer.id, { onDelete: 'restrict' }),
+		customerId: uuid().notNull(),
 
 		/** `JOB` / 1 / `JOB-0001`. Three columns because sorting and printing are different questions. */
 		numberPrefix: text().notNull(),

@@ -70,7 +70,7 @@ import {
 	qtyE6,
 	timestamps
 } from '../base';
-import { business, customer } from './core';
+import { business } from './core';
 
 /**
  * Per-business invoicing defaults.
@@ -133,8 +133,11 @@ export const invoice = pgTable(
 		/**
 		 * The address book entry this document was drawn from. Nullable, because a fresh draft has
 		 * no client yet; required the moment it is issued.
+		 *
+		 * Composite, `(business_id, customer_id) -> core_customer (business_id, id)`, hand-written in
+		 * `drizzle/0012_customer_keys.sql`, so no invoice can name another business's customer.
 		 */
-		customerId: uuid().references(() => customer.id, { onDelete: 'restrict' }),
+		customerId: uuid(),
 
 		/** WHAT THIS DOCUMENT SAYS ABOUT THE CLIENT — snapshot 1. See `quoting.ts`. */
 		customerName: text(),
