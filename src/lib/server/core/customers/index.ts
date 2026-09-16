@@ -17,6 +17,21 @@ import {
 import { customer } from '../db/schema/core';
 import type { Tx } from '../db/tx';
 
+/**
+ * A document named a client this business cannot see: archived-and-gone is not it (archived
+ * clients are still visible), so it is another business's id, or one that never existed. Since
+ * 0012 the database refuses the link; this says so before the statement is sent, in words a person
+ * can act on rather than as a failed save.
+ */
+export class ClientNotFound extends Error {
+	constructor() {
+		super(
+			"That client isn't in your address book. Pick one from the list, or add them as a new client."
+		);
+		this.name = 'ClientNotFound';
+	}
+}
+
 /** How many likely duplicates are worth showing. One is the usual case; five is plenty to choose from. */
 const MAX_MATCHES = 5;
 
@@ -48,7 +63,10 @@ export async function findPhoneMatches(
 		.where(
 			and(
 				isNull(customer.archivedAt),
-				sql`right(regexp_replace(${customer.phone}, '\\D', '', 'g'), ${PHONE_TAIL_LENGTH}) = ${tail}`
+				// The length is inlined, not bound: `core_customer_phone_tail_idx` indexes the expression
+				// with a literal 9, and Postgres matches an expression index by its parse tree, so a
+				// parameter in that position would stop a generic plan from using it.
+				sql`right(regexp_replace(${customer.phone}, '\\D', '', 'g'), ${sql.raw(String(PHONE_TAIL_LENGTH))}) = ${tail}`
 			)
 		)
 		.orderBy(asc(customer.name))

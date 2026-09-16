@@ -23,7 +23,7 @@
 	 * guess, a closed tab flushes through `sendBeacon`, and sending flushes first — a quote
 	 * emailed with an unsaved line would be a document the business never finished.
 	 */
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { tracked } from '$lib/components/motion';
 	import {
 		blankLine,
@@ -200,8 +200,15 @@
 		declined = differences.map((d: FieldDifference) => `${d.field}=${d.now}`).join('|');
 	}
 
-	/** Choosing a different client re-takes the snapshot on the server, so the page reloads it. */
+	/**
+	 * Choosing a different client re-takes the snapshot on the server, so the page reloads it.
+	 *
+	 * `tick()` first. The new client id is set synchronously, but the autosave only hears about it
+	 * from the `$effect` above, which runs on the next flush. Flushing before that would find nothing
+	 * pending and reload straight away, leaving the choice to a `pagehide` beacon racing the reload.
+	 */
 	async function changeClient() {
+		await tick();
 		await autosave.flush();
 		globalThis.location.reload();
 	}

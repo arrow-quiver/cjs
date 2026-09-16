@@ -15,6 +15,7 @@
  */
 import { error, json } from '@sveltejs/kit';
 import { withModule } from '$lib/server/core/ctx';
+import { ClientNotFound } from '$lib/server/core/customers';
 import { InvoiceNotEditable, saveDraft } from '$lib/server/modules/invoicing/effects';
 import { parseInvoicePatch } from '$lib/server/modules/invoicing/wire';
 import type { SaveResult } from '$lib/core/invoicing/wire';
@@ -36,6 +37,11 @@ export const POST: RequestHandler = async (event) => {
 			// as well; this is the sentence a person gets.
 			if (cause instanceof InvoiceNotEditable) {
 				error(409, { code: 'invoice_issued', message: cause.message });
+			}
+			// A client this business cannot see: another business's id held in a stale tab, say.
+			// Refused before anything is written, and said as something the person can fix.
+			if (cause instanceof ClientNotFound) {
+				error(422, { code: 'client_not_found', message: cause.message });
 			}
 			throw cause;
 		}

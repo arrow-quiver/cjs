@@ -15,6 +15,7 @@
  */
 import { error, json } from '@sveltejs/kit';
 import { withModule } from '$lib/server/core/ctx';
+import { ClientNotFound } from '$lib/server/core/customers';
 import { QuoteNotEditable, saveDraft } from '$lib/server/modules/quoting/effects';
 import { parseDraftPatch } from '$lib/server/modules/quoting/wire';
 import type { SaveResult } from '$lib/core/quoting';
@@ -39,6 +40,11 @@ export const POST: RequestHandler = async (event) => {
 			// could do. Said in language the editor can show, not as a 500.
 			if (cause instanceof QuoteNotEditable) {
 				error(409, { code: 'quote_sent', message: cause.message });
+			}
+			// A client this business cannot see: another business's id held in a stale tab, say.
+			// Refused before anything is written, and said as something the person can fix.
+			if (cause instanceof ClientNotFound) {
+				error(422, { code: 'client_not_found', message: cause.message });
 			}
 			throw cause;
 		}

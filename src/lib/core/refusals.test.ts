@@ -30,6 +30,7 @@ const TONES: Record<RefusalCode, 'calm' | 'wrong'> = {
 	not_found: 'calm',
 	no_such_quote: 'calm',
 	no_such_invoice: 'calm',
+	client_not_found: 'calm',
 	too_many_requests: 'calm',
 	module_already_added: 'wrong',
 	module_not_added: 'wrong',

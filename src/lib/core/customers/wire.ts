@@ -38,7 +38,11 @@ const schema = z.object({
 	confirmDuplicate: z.boolean().optional().default(false)
 });
 
-export type NewCustomer = z.infer<typeof schema>;
+/** What the endpoint hands the server code, once parsed. */
+export type NewCustomer = z.output<typeof schema>;
+
+/** What the browser sends: the form's strings as typed, before blanks become nulls. */
+export type NewCustomerRequest = z.input<typeof schema>;
 
 const WORDS: Vocabulary = {
 	fields: {
@@ -58,6 +62,28 @@ export type CustomerChoice = { readonly id: string; readonly name: string };
 
 /** An existing client whose phone number matches the one being added. */
 export type LikelyDuplicate = CustomerChoice & { readonly phone: string };
+
+/**
+ * Whether a response body is an answer this contract knows. A gateway's error page or a sign-in
+ * redirect is JSON-shaped nonsense or not JSON at all, and neither should reach the dialog's switch
+ * as if it were an answer.
+ */
+export function isCreateCustomerAnswer(value: unknown): value is CreateCustomerAnswer {
+	if (typeof value !== 'object' || value === null) return false;
+	const kind = (value as { kind?: unknown }).kind;
+	switch (kind) {
+		case 'created':
+			return typeof (value as { customer?: { id?: unknown } }).customer?.id === 'string';
+		case 'duplicate':
+			return Array.isArray((value as { matches?: unknown }).matches);
+		case 'invalid':
+			return typeof (value as { errors?: unknown }).errors === 'object';
+		case 'failed':
+			return typeof (value as { message?: unknown }).message === 'string';
+		default:
+			return false;
+	}
+}
 
 export type CreateCustomerAnswer =
 	| { readonly kind: 'created'; readonly customer: CustomerChoice }

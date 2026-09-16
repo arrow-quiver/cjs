@@ -22,9 +22,9 @@
  * The union serves two audiences and it is worth knowing which code belongs to which, because
  * a reader who assumes "every code renders on an error page" will be wrong about eight of them.
  *
- * Eight are thrown from `+server.ts` ENDPOINTS — `invalid_quote`, `quote_sent`,
- * `invalid_invoice`, `invoice_issued`, `invalid_count`, `count_applied`, `count_not_counting`
- * and `invalid_promotion`. SvelteKit returns those as JSON; the autosave engines and the invoice
+ * Nine are thrown from `+server.ts` ENDPOINTS — `invalid_quote`, `quote_sent`,
+ * `invalid_invoice`, `invoice_issued`, `invalid_count`, `count_applied`, `count_not_counting`,
+ * `invalid_promotion` and `client_not_found`. SvelteKit returns those as JSON; the autosave engines and the invoice
  * editor read `body.message` out of the response and render it as a `Refusal` banner beside the
  * work it failed to save. They never reach a `+error.svelte` at all.
  *
@@ -56,6 +56,7 @@ export type RefusalCode =
 	| 'not_found'
 	| 'no_such_quote'
 	| 'no_such_invoice'
+	| 'client_not_found'
 	| 'too_many_requests'
 	// The page and the payload disagree — read by `fetch`, rendered as a banner.
 	| 'invalid_quote'
@@ -164,6 +165,7 @@ export function toneOf(status: number, code?: RefusalCode): 'calm' | 'wrong' {
 		case 'not_found':
 		case 'no_such_quote':
 		case 'no_such_invoice':
+		case 'client_not_found':
 		case 'too_many_requests':
 			return 'calm';
 

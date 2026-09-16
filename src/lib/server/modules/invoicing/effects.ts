@@ -15,6 +15,7 @@
  * checks below exist to produce a sentence a person can act on; the trigger exists because a
  * form is a suggestion and a database is where a rule lives.
  */
+import { ClientNotFound } from '$lib/server/core/customers';
 import { and, eq, isNull, notInArray, sql } from 'drizzle-orm';
 import { VAT_POLICY, type Money } from '$lib/core/money';
 import { notFoundMessage } from '$lib/core/refusals';
@@ -352,7 +353,8 @@ async function copyCustomerOntoInvoice(
 	customerId: string
 ): Promise<void> {
 	const [c] = await tx.select().from(customerTable).where(eq(customerTable.id, customerId));
-	if (!c) return;
+	// Not visible means not this business's. See `ClientNotFound`.
+	if (!c) throw new ClientNotFound();
 
 	await tx
 		.update(invoice)

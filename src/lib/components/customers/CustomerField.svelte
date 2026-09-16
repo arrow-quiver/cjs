@@ -78,7 +78,13 @@
 					{/each}
 				</SelectContent>
 			</Select>
-			<Button variant="secondary" {disabled} onclick={() => (adding = true)}>
+			<!-- 44px under a thumb, the control height beside the select on a desktop. -->
+			<Button
+				variant="secondary"
+				class="h-11 shrink-0 lg:h-9"
+				{disabled}
+				onclick={() => (adding = true)}
+			>
 				<Plus class="size-4" aria-hidden="true" />
 				New client
 			</Button>

@@ -62,6 +62,9 @@
 		message = null;
 		try {
 			const answer = await create({ name, phone, email, confirmDuplicate });
+			// Closed while the request was out: the person has moved on, and an answer landing in a
+			// dialog they dismissed would greet them with a stale warning next time they open it.
+			if (!open) return;
 			switch (answer.kind) {
 				case 'created':
 					choose(answer.customer);
@@ -129,6 +132,7 @@
 						<Input
 							{...field}
 							bind:value={phone}
+							oninput={() => (matches = [])}
 							type="tel"
 							inputmode="tel"
 							autocomplete="off"
@@ -164,7 +168,11 @@
 									{match.name}
 									<span class="numeric text-helper text-ink-muted">{match.phone}</span>
 								</span>
-								<Button variant="secondary" size="sm" onclick={() => choose(match)}>
+								<Button
+									variant="secondary"
+									class="h-11 sm:h-8 sm:px-3 sm:text-[13px]"
+									onclick={() => choose(match)}
+								>
 									Use {match.name}
 								</Button>
 							</li>

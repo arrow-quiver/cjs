@@ -16,7 +16,7 @@ import { messagesByField } from '$lib/core/validation';
 import { parseNewCustomer, type CreateCustomerAnswer } from '$lib/core/customers';
 import { withBusiness } from '$lib/server/core/ctx';
 import { createCustomer, findPhoneMatches } from '$lib/server/core/customers';
-import { RateLimiter, callerKey } from '$lib/server/core/ratelimit';
+import { RateLimiter } from '$lib/server/core/ratelimit';
 import type { RequestHandler } from './$types';
 
 /** Generous for a person at a keyboard, and a wall for a script filling an address book. */
@@ -24,30 +24,33 @@ const ADDS = new RateLimiter({ burst: 20, perMinute: 20 });
 
 const answer = (body: CreateCustomerAnswer, status: number) => json(body, { status });
 
-export const POST: RequestHandler = async (event) => {
-	const limit = ADDS.take(callerKey(event.request));
-	if (!limit.allowed) {
-		return json(
-			{
-				kind: 'failed',
-				message: 'That is a lot of new clients at once. Wait a minute and try again.'
-			} satisfies CreateCustomerAnswer,
-			{ status: 429, headers: { 'retry-after': String(limit.retryAfterSeconds) } }
-		);
-	}
+export const POST: RequestHandler = async (event) =>
+	// Signed in and in a business before anything else: the limit is keyed on the person, whose id
+	// the server knows, rather than on a forwarded address, which a caller can write. The body is
+	// read only for somebody allowed to send one.
+	withBusiness(event, async (ctx) => {
+		const limit = ADDS.take(ctx.member.userId);
+		if (!limit.allowed) {
+			return json(
+				{
+					kind: 'failed',
+					message: 'That is a lot of new clients at once. Wait a minute and try again.'
+				} satisfies CreateCustomerAnswer,
+				{ status: 429, headers: { 'retry-after': String(limit.retryAfterSeconds) } }
+			);
+		}
 
-	let body: unknown;
-	try {
-		body = await event.request.json();
-	} catch {
-		return answer({ kind: 'failed', message: 'We could not read that. Try again.' }, 400);
-	}
+		let body: unknown;
+		try {
+			body = await event.request.json();
+		} catch {
+			return answer({ kind: 'failed', message: 'We could not read that. Try again.' }, 400);
+		}
 
-	const parsed = parseNewCustomer(body);
-	if (!parsed.ok) return answer({ kind: 'invalid', errors: messagesByField(parsed) }, 422);
-	const input = parsed.value;
+		const parsed = parseNewCustomer(body);
+		if (!parsed.ok) return answer({ kind: 'invalid', errors: messagesByField(parsed) }, 422);
+		const input = parsed.value;
 
-	return withBusiness(event, async (ctx) => {
 		if (!input.confirmDuplicate) {
 			const matches = await findPhoneMatches(ctx.tx, input.phone);
 			if (matches.length > 0) return answer({ kind: 'duplicate', matches }, 409);
@@ -56,4 +59,3 @@ export const POST: RequestHandler = async (event) => {
 		const customer = await createCustomer(ctx.tx, ctx.business.id, input);
 		return answer({ kind: 'created', customer }, 201);
 	});
-};
