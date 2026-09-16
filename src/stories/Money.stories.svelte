@@ -42,7 +42,7 @@
 
 		// Same right edge for every row, to the pixel: that IS decimal alignment for a
 		// right-aligned tabular column.
-		// eslint-disable-next-line no-restricted-syntax -- a CSS pixel offset is not money.
+		// eslint-disable-next-line zones/float-money -- a CSS pixel offset is not money.
 		const rights = cells.map((cell) => Math.round(cell.getBoundingClientRect().right));
 		expect(new Set(rights).size).toBe(1);
 

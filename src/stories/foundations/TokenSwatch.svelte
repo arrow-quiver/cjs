@@ -26,7 +26,7 @@
 
 	// A WCAG ratio is not an amount, so the money-rounding rule does not apply. It is
 	// display-only and never feeds a calculation.
-	// eslint-disable-next-line no-restricted-syntax
+	// eslint-disable-next-line zones/float-money
 	const toTwoPlaces = (ratio: number) => ratio.toFixed(2);
 
 	// Tints resolve to a `color-mix(...)` expression rather than a hex, and there is

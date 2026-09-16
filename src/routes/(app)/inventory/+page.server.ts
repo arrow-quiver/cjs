@@ -135,7 +135,7 @@ export const load: PageServerLoad = async (event) => {
 			sort,
 			direction,
 			// A count of pages, not an amount — there is no rounding policy for "how many pages".
-			// eslint-disable-next-line no-restricted-syntax -- pages, not money
+			// eslint-disable-next-line zones/float-money -- pages, not money
 			pageCount: Math.max(1, Math.ceil(result.total / (result.pageSize || DEFAULT_PAGE_SIZE)))
 		};
 	});

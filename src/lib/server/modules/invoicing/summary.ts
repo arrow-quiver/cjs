@@ -192,7 +192,7 @@ function describeChange(lastMonth: Money, prior: Money): string {
 /** `YYYY-MM-01`, with month overflow handled — month 0 is December of the year before. */
 function monthStart(year: number, month: number): string {
 	// Calendar arithmetic, not money: there is no rounding policy for "which year is month -1 in".
-	// eslint-disable-next-line no-restricted-syntax -- a calendar, not an amount
+	// eslint-disable-next-line zones/float-money -- a calendar, not an amount
 	const y = year + Math.floor((month - 1) / 12);
 	const m = ((((month - 1) % 12) + 12) % 12) + 1;
 	return `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}-01`;

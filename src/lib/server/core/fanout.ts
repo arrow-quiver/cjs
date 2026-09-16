@@ -28,7 +28,7 @@ import { env } from '$lib/server/env';
 export function fanoutBound(poolMax: number = env.DATABASE_POOL_MAX): number {
 	// Connections, not money: there is no rounding policy to respect, because a third of a
 	// connection cannot be opened.
-	// eslint-disable-next-line no-restricted-syntax -- not money, see above
+	// eslint-disable-next-line zones/float-money -- not money, see above
 	return Math.max(1, Math.trunc(poolMax / 3));
 }
 
@@ -77,7 +77,7 @@ export async function fanoutSettled<T, R>(
 ): Promise<FanoutResult<R>[]> {
 	// Concurrent workers, not money: a caller-supplied bound is normalised to a whole
 	// number of connections.
-	// eslint-disable-next-line no-restricted-syntax -- not money, see above
+	// eslint-disable-next-line zones/float-money -- not money, see above
 	const bound = Math.max(1, Math.trunc(options.bound ?? fanoutBound()));
 	const results = new Array<FanoutResult<R>>(items.length);
 

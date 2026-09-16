@@ -138,7 +138,7 @@ const INV_1042: PrintableDocument = {
  * `toFixed` is banned as a money formatter and these are POINTS ON A PAGE — a coordinate has
  * no currency, no rounding policy and no cents. Disabled for the function, with the reason.
  */
-/* eslint-disable no-restricted-syntax -- coordinates, not money */
+/* eslint-disable zones/float-money -- coordinates, not money */
 function asTable(layout: Layout): string {
 	const rows = layout.texts.map(
 		(t) =>
@@ -160,7 +160,7 @@ function asTable(layout: Layout): string {
 	].join('\n');
 }
 
-/* eslint-enable no-restricted-syntax */
+/* eslint-enable zones/float-money */
 
 describe('layout', () => {
 	it('places QT-1043 exactly where it belongs', async () => {

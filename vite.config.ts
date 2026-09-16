@@ -9,6 +9,12 @@ import { playwright } from '@vitest/browser-playwright';
 
 const dirname = import.meta.dirname;
 
+/** Everything under core and components is database-free by construction. */
+const PURE_TESTS = [
+	'src/lib/core/**/*.{test,spec}.{js,ts}',
+	'src/lib/components/**/*.{test,spec}.{js,ts}'
+];
+
 // SvelteKit configuration — adapter, forced runes mode, tsconfig includes — lives in
 // svelte.config.js, which is the file vite-plugin-svelte, Vitest, svelte-check and the
 // shadcn-svelte CLI all read. Inline config here left them guessing.
@@ -36,15 +42,28 @@ export default defineConfig({
 	},
 	test: {
 		projects: [
-			// Plain node tests: money arithmetic, tenancy, entitlement, audit, registry
-			// invariants. Without this project `src/**/*.test.ts` would never run at all.
+			// Tests that need nothing but Node: money arithmetic, validation, copy, tokens, and the
+			// architecture zones in `eslint.config.test.ts`. No setup file and no database, which
+			// is what lets CI run them on every pull request without a credential. A test that
+			// needs the database belongs in `unit`; one that lands here by mistake fails in CI on
+			// its first connection, which is the right place to find out.
+			{
+				extends: true,
+				test: {
+					name: 'pure',
+					environment: 'node',
+					include: [...PURE_TESTS, 'eslint.config.test.ts'],
+					exclude: ['src/**/*.stories.*', 'src/**/*.mobile.spec.ts']
+				}
+			},
+			// Node tests against the database: tenancy, entitlement, audit, registry invariants.
 			{
 				extends: true,
 				test: {
 					name: 'unit',
 					environment: 'node',
 					include: ['src/**/*.{test,spec}.{js,ts}', 'src/**/*.svelte.{test,spec}.{js,ts}'],
-					exclude: ['src/**/*.stories.*', 'src/**/*.mobile.spec.ts'],
+					exclude: ['src/**/*.stories.*', 'src/**/*.mobile.spec.ts', ...PURE_TESTS],
 					// A large part of this project asserts Row Level Security, and every one of
 					// those assertions is worth nothing if the connection can bypass a policy.
 					// The setup file proves it cannot, once per worker, before any suite runs —

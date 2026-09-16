@@ -64,7 +64,7 @@ export const load: PageServerLoad = async (event) => {
 			movements: history.movements,
 			locations,
 			page: history.page,
-			// eslint-disable-next-line no-restricted-syntax -- pages, not money
+			// eslint-disable-next-line zones/float-money -- pages, not money
 			pageCount: Math.max(1, Math.ceil(history.total / (history.pageSize || DEFAULT_PAGE_SIZE)))
 		};
 	});
