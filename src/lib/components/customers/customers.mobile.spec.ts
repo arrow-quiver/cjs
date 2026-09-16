@@ -54,6 +54,10 @@ describe('the client picker on a phone', () => {
 
 		expect(button).toBeDefined();
 		expect(heightOf(button!)).toBeGreaterThanOrEqual(TOUCH_MINIMUM);
+
+		const trigger = field.querySelector('[data-slot="select-trigger"]');
+		expect(trigger).not.toBeNull();
+		expect(heightOf(trigger!)).toBeGreaterThanOrEqual(TOUCH_MINIMUM);
 	});
 
 	it('gives "Use" on a likely duplicate a full touch target', async () => {

@@ -17,5 +17,18 @@ export type { CommercialInput, CommercialState, JobInvoice, JobQuote } from './c
 
 export { commercialSentence, statusLabel } from './copy';
 
+export {
+	JOB_FILTERS,
+	OPEN_STATUSES,
+	isJobFilter,
+	jobFilterLabel,
+	jobTitle,
+	jobsEmptyCopy,
+	nextStep,
+	statusTone,
+	statusesFor
+} from './pipeline';
+export type { JobFilter, JobRow } from './pipeline';
+
 export { materialsFromMovements } from './materials';
 export type { JobMovementCost, MaterialsDerivation } from './materials';

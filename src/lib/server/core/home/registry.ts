@@ -11,9 +11,9 @@
  * Quoting's queries would couple the dashboard to a module a business might not own, which is
  * the precise failure the whole modular promise rests on not having.
  *
- * THE FOUR MODULES THAT ARE NOT HERE
- * ----------------------------------
- * Bookings, Job scheduling, Payroll and Expenses exist in the catalogue and have no screens
+ * THE THREE MODULES THAT ARE NOT HERE
+ * -----------------------------------
+ * Bookings, Payroll and Expenses exist in the catalogue and have no screens
  * and no storage. They are absent rather than registered with an empty contributor: a
  * contributor that always returns nothing is a transaction opened for no reason, on every
  * dashboard load, for every business that owns one. They join by adding a row.
@@ -21,6 +21,7 @@
 import { summariseInventory } from '$lib/server/modules/inventory/public';
 import { summariseInvoicing } from '$lib/server/modules/invoicing/public';
 import { summariseQuoting } from '$lib/server/modules/quoting/public';
+import { summariseScheduling } from '$lib/server/modules/scheduling/public';
 import { MODULES } from '$lib/core/modules/catalogue';
 import type { AccessMap } from '../entitlement';
 import type { PanelKey, SummaryContributor } from './types';
@@ -41,6 +42,12 @@ export const CONTRIBUTORS: readonly SummaryContributor[] = Object.freeze([
 		module: 'inventory',
 		panels: ['standing', 'resume'],
 		summarise: summariseInventory
+	},
+	{
+		module: 'scheduling',
+		// No figures: a job is not money. Its commercial state is the documents' to report.
+		panels: ['standing', 'resume'],
+		summarise: summariseScheduling
 	}
 ]);
 
