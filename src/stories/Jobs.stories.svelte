@@ -11,8 +11,8 @@
 	});
 
 	const EMPLOYEES: readonly EmployeeRow[] = [
-		{ id: 'e-1', name: 'Thabo Nkosi', teamIds: ['t-1'] },
-		{ id: 'e-2', name: 'Anele Mthembu', teamIds: [] }
+		{ id: 'e-1', name: 'Thabo Nkosi', userId: null, teamIds: ['t-1'] },
+		{ id: 'e-2', name: 'Anele Mthembu', userId: null, teamIds: [] }
 	];
 
 	const TEAMS: readonly TeamRow[] = [{ id: 't-1', name: 'Install crew', memberCount: 2 }];

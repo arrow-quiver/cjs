@@ -6,11 +6,11 @@
 	 * Each row goes where its fact lives — the job, usually.
 	 */
 	import { enhance } from '$app/forms';
-	import { Button, EmptyState } from '$lib/ui';
+	import { Button, EmptyState, Refusal } from '$lib/ui';
 	import { submission } from '$lib/components/motion';
-	import type { PageData } from './$types';
+	import type { ActionData, PageData } from './$types';
 
-	let { data }: { data: PageData } = $props();
+	let { data, form }: { data: PageData; form: ActionData } = $props();
 
 	const reading = submission();
 </script>
@@ -39,6 +39,12 @@
 			</form>
 		{/if}
 	</div>
+
+	{#if form?.message}
+		<div class="mt-4">
+			<Refusal message={form.message} />
+		</div>
+	{/if}
 
 	{#if data.items.length === 0}
 		<div class="mt-10">

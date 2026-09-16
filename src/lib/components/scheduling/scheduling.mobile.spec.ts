@@ -84,7 +84,7 @@ describe('jobs on a phone', () => {
 					endMinute: 600
 				}
 			],
-			employees: [{ id: 'e-1', name: 'Thabo Nkosi', teamIds: [] }],
+			employees: [{ id: 'e-1', name: 'Thabo Nkosi', userId: null, teamIds: [] }],
 			teams: []
 		});
 

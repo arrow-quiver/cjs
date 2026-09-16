@@ -29,11 +29,19 @@ export class TeamNotFound extends Error {
 	}
 }
 
+/** Taking somebody off a team they are not on. */
+export class MembershipNotFound extends Error {
+	constructor() {
+		super('They are not on that team.');
+		this.name = 'MembershipNotFound';
+	}
+}
+
 /** Every employee that is not archived, by name, with the teams they are on. */
 export async function listEmployees(tx: Tx): Promise<readonly EmployeeRow[]> {
 	const [people, memberships] = await Promise.all([
 		tx
-			.select({ id: employee.id, name: employee.name })
+			.select({ id: employee.id, name: employee.name, userId: employee.userId })
 			.from(employee)
 			.where(isNull(employee.archivedAt))
 			.orderBy(asc(employee.name), asc(employee.id)),
@@ -92,6 +100,13 @@ export async function createTeam(
 /**
  * Put an employee on a team, or take them off it. One row per pairing forever: joining revives
  * the archived row where one exists, leaving archives it.
+ *
+ * Both ends are looked up in this transaction first, so a stale or foreign id is refused as a
+ * sentence rather than as the composite key's constraint error — `startJob`'s argument. The
+ * employee row is locked for the same reason `scheduleJob` locks it: a booking of this person,
+ * running now, holds that lock, and this change waits its turn rather than racing the clash
+ * check. A change landing AFTER a booking is not re-validated against the plan; that is a known
+ * seam, recorded on the PR.
  */
 export async function setMembership(
 	tx: Tx,
@@ -100,6 +115,19 @@ export async function setMembership(
 	teamId: string,
 	on: boolean
 ): Promise<void> {
+	const [person] = await tx
+		.select({ id: employee.id })
+		.from(employee)
+		.where(and(eq(employee.id, employeeId), isNull(employee.archivedAt)))
+		.for('update');
+	if (!person) throw new EmployeeNotFound();
+
+	const [crew] = await tx
+		.select({ id: team.id })
+		.from(team)
+		.where(and(eq(team.id, teamId), isNull(team.archivedAt)));
+	if (!crew) throw new TeamNotFound();
+
 	if (on) {
 		await tx
 			.insert(employeeTeam)
@@ -110,10 +138,40 @@ export async function setMembership(
 			});
 		return;
 	}
-	await tx
+	const left = await tx
 		.update(employeeTeam)
 		.set({ archivedAt: new Date() })
-		.where(and(eq(employeeTeam.employeeId, employeeId), eq(employeeTeam.teamId, teamId)));
+		.where(
+			and(
+				eq(employeeTeam.employeeId, employeeId),
+				eq(employeeTeam.teamId, teamId),
+				isNull(employeeTeam.archivedAt)
+			)
+		)
+		.returning({ id: employeeTeam.id });
+	if (left.length === 0) throw new MembershipNotFound();
+}
+
+/**
+ * Link an employee row to the signed-in person's login: the People screen's "This is me".
+ *
+ * Self-service on purpose. It needs no member directory, and the claim is the person's own act,
+ * which is also what makes the notification feed honest: rows reach whoever pressed the button
+ * on their own name. Claiming moves the login off any employee it was on before, so one login
+ * is one pair of hands at a time.
+ */
+export async function claimEmployee(tx: Tx, employeeId: string, userId: string): Promise<void> {
+	await tx
+		.update(employee)
+		.set({ userId: null })
+		.where(and(eq(employee.userId, userId), isNull(employee.archivedAt)));
+
+	const claimed = await tx
+		.update(employee)
+		.set({ userId })
+		.where(and(eq(employee.id, employeeId), isNull(employee.archivedAt)))
+		.returning({ id: employee.id });
+	if (claimed.length === 0) throw new EmployeeNotFound();
 }
 
 /**

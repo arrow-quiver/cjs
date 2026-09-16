@@ -7,7 +7,7 @@
 	 */
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
-	import { Button, EmptyState, Field, Input } from '$lib/ui';
+	import { Button, EmptyState, Field, Input, Refusal } from '$lib/ui';
 	import { submission } from '$lib/components/motion';
 	import type { ActionData, PageData } from './$types';
 
@@ -37,6 +37,12 @@
 	<p class="mt-1 text-ui text-ink-secondary">
 		Who carries the tools. A person can be on any number of teams, or none.
 	</p>
+
+	{#if errors.membership}
+		<div class="mt-4">
+			<Refusal message={errors.membership} />
+		</div>
+	{/if}
 
 	<div class="mt-6 grid gap-6 lg:grid-cols-[2fr_1fr]">
 		<section aria-labelledby="people-heading">
@@ -85,6 +91,22 @@
 						<li class="flex min-h-11 flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3">
 							<span class="min-w-0 flex-1 truncate text-ui font-medium text-ink">{person.name}</span
 							>
+							{#if person.userId === data.me}
+								<span class="rounded-full bg-brand-tint px-2.5 py-1 text-helper text-brand-ink"
+									>You</span
+								>
+							{:else if person.userId === null && !data.readOnly}
+								<!-- Linking is what routes this person's notifications to their sign-in. -->
+								<form method="POST" action="?/claim" use:enhance={toggling.enhance}>
+									<input type="hidden" name="employeeId" value={person.id} />
+									<button
+										type="submit"
+										class="min-h-11 rounded-full border border-line-control px-2.5 py-1 text-helper text-ink-secondary transition-colors outline-none hover:border-line-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-focus-ring focus-visible:outline-solid lg:min-h-8"
+									>
+										This is me
+									</button>
+								</form>
+							{/if}
 							{#if data.teams.length > 0}
 								<span class="flex flex-wrap items-center gap-1.5">
 									{#each data.teams as crew (crew.id)}

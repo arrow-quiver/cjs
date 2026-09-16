@@ -25,7 +25,7 @@ import {
 	unscheduleEntry
 } from '$lib/server/modules/scheduling/effects';
 import { jobSlots } from '$lib/server/modules/scheduling/queries';
-import { parseScheduleEntry, parseStatus } from '$lib/server/modules/scheduling/wire';
+import { isId, parseScheduleEntry, parseStatus } from '$lib/server/modules/scheduling/wire';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async (event) =>
@@ -106,7 +106,7 @@ export const actions: Actions = {
 	unschedule: async (event) => {
 		const form = await event.request.formData();
 		const entryId = form.get('entryId');
-		if (typeof entryId !== 'string' || entryId.length === 0) {
+		if (!isId(entryId)) {
 			return fail(422, { message: 'Choose the slot to take off the plan.' });
 		}
 

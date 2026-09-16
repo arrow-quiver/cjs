@@ -5,7 +5,7 @@
  * by the button, never by the load — a load runs on hover preload, and "you looked at it"
  * must mean a person did.
  */
-import { fail } from '@sveltejs/kit';
+import { fail, isHttpError, isRedirect } from '@sveltejs/kit';
 import {
 	listNotifications,
 	markNotificationsRead,
@@ -29,9 +29,11 @@ export const load: PageServerLoad = async (event) =>
 				detail: item.detail,
 				href: item.href,
 				read: item.readAt !== null,
+				// The business's zone, not the container's: a 23:30 notification is still "today".
 				when: item.createdAt.toLocaleDateString(ctx.business.locale, {
 					day: 'numeric',
-					month: 'short'
+					month: 'short',
+					timeZone: 'Africa/Johannesburg'
 				})
 			}))
 		};
@@ -43,7 +45,9 @@ export const actions: Actions = {
 			await withBusiness(event, async (ctx) => {
 				await markNotificationsRead(ctx.tx, ctx.userId);
 			});
-		} catch {
+		} catch (cause) {
+			if (isHttpError(cause) || isRedirect(cause)) throw cause;
+			console.error('notifications: could not mark read', cause);
 			return fail(500, { message: 'We could not mark these read just now. Try again.' });
 		}
 		return { done: true };

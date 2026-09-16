@@ -40,13 +40,16 @@
 
 	/** The refusal belongs to this attempt; see `CreateJobDialog` for the argument. */
 	let errors = $state<Readonly<Record<string, string>>>({});
+	let message = $state<string | null>(null);
 
 	const booking = submission(() => async ({ result, update }) => {
 		if (result.type === 'failure') {
 			errors = (result.data?.errors as Record<string, string> | undefined) ?? {};
+			message = (result.data?.message as string | null | undefined) ?? null;
 			return;
 		}
 		errors = {};
+		message = null;
 		await update({ reset: false });
 	});
 	const removing = submission();
@@ -115,11 +118,12 @@
 		first.
 	</p>
 {:else}
+	<p class="mt-3 text-ui text-wrong-ink" aria-live="polite">{message ?? ''}</p>
 	<form
 		method="POST"
 		action="?/schedule"
 		use:enhance={booking.enhance}
-		class="mt-3 flex flex-wrap items-end gap-3"
+		class="mt-1 flex flex-wrap items-end gap-3"
 	>
 		<input type="hidden" name="assignee" value={assignee} />
 		<Field label="Who" id="slot-assignee" error={errors.assignee ?? null} class="min-w-48 flex-1">

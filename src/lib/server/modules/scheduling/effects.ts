@@ -140,6 +140,8 @@ export async function scheduleJob(
 		hands = await teamMembers(tx, crew.id);
 	}
 
+	// An empty team books cleanly and quietly: nobody to double-book, nobody to tell. The entry
+	// still lands on the board, which is what makes the gap visible.
 	if (hands.length > 0) {
 		const handIds = hands.map((person) => person.id);
 

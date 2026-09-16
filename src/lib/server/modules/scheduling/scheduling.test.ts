@@ -279,6 +279,25 @@ describe('putting work on the plan', () => {
 		const week = await as(theirs, (tx) => weekEntries(tx, '2026-10-05'));
 		expect(week).toHaveLength(0);
 	});
+
+	it("refuses another business's hands, and cannot touch another business's slot", async () => {
+		const started = await start('Fence repair');
+		const { id: outsider } = await as(theirs, (tx) => createEmployee(tx, theirs.id, 'Bob Bayside'));
+
+		const hands = await messageFromRejection(
+			book(started.id, { kind: 'employee', id: outsider }, '2026-10-09', 480, 600)
+		);
+		expect(hands).toBe(
+			'That person is not on your list. Pick somebody from it, or add them first.'
+		);
+
+		const { id: person } = await as(mine, (tx) => createEmployee(tx, mine.id, 'Lindiwe Cele'));
+		await book(started.id, { kind: 'employee', id: person }, '2026-10-09', 480, 600);
+		const [slot] = await as(mine, (tx) => jobSlots(tx, started.id));
+
+		const removal = await messageFromRejection(as(theirs, (tx) => unscheduleEntry(tx, slot.id)));
+		expect(removal).toBe("We couldn't find that slot.");
+	});
 });
 
 describe('the list', () => {

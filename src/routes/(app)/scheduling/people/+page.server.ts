@@ -7,13 +7,17 @@
 import { fail, isHttpError, isRedirect, redirect } from '@sveltejs/kit';
 import { moduleAccess, withModule } from '$lib/server/core/ctx';
 import {
+	EmployeeNotFound,
+	MembershipNotFound,
+	TeamNotFound,
+	claimEmployee,
 	createEmployee,
 	createTeam,
 	listEmployees,
 	listTeams,
 	setMembership
 } from '$lib/server/core/people';
-import { parseMembership, parseName } from '$lib/server/modules/scheduling/wire';
+import { isId, parseMembership, parseName } from '$lib/server/modules/scheduling/wire';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async (event) => {
@@ -22,7 +26,7 @@ export const load: PageServerLoad = async (event) => {
 
 	return withModule(event, 'scheduling', 'read', async (ctx) => {
 		const [employees, teams] = await Promise.all([listEmployees(ctx.tx), listTeams(ctx.tx)]);
-		return { employees, teams, readOnly: access !== 'write' };
+		return { employees, teams, me: ctx.userId, readOnly: access !== 'write' };
 	});
 };
 
@@ -85,9 +89,40 @@ export const actions: Actions = {
 			});
 		} catch (cause) {
 			if (isHttpError(cause) || isRedirect(cause)) throw cause;
+			if (
+				cause instanceof EmployeeNotFound ||
+				cause instanceof TeamNotFound ||
+				cause instanceof MembershipNotFound
+			) {
+				return fail(422, { errors: { membership: cause.message } });
+			}
 			console.error('scheduling: could not change a membership', cause);
 			return fail(500, {
 				errors: { membership: 'We could not change that just now. Nothing was saved. Try again.' }
+			});
+		}
+		return { changed: true };
+	},
+
+	claim: async (event) => {
+		const form = await event.request.formData();
+		const employeeId = form.get('employeeId');
+		if (!isId(employeeId)) {
+			return fail(422, { errors: { membership: 'Choose the person you are.' } });
+		}
+
+		try {
+			await withModule(event, 'scheduling', 'write', (ctx) =>
+				claimEmployee(ctx.tx, employeeId, ctx.userId)
+			);
+		} catch (cause) {
+			if (isHttpError(cause) || isRedirect(cause)) throw cause;
+			if (cause instanceof EmployeeNotFound) {
+				return fail(422, { errors: { membership: cause.message } });
+			}
+			console.error('scheduling: could not link a login', cause);
+			return fail(500, {
+				errors: { membership: 'We could not link that just now. Nothing was saved. Try again.' }
 			});
 		}
 		return { changed: true };

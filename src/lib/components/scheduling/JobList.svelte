@@ -10,6 +10,7 @@
 	 */
 	import BadgeCheck from '@lucide/svelte/icons/badge-check';
 	import Plus from '@lucide/svelte/icons/plus';
+	import { resolve } from '$app/paths';
 	import { Badge, Button, EmptyState, NoMatches } from '$lib/ui';
 	import {
 		jobTitle,
@@ -73,7 +74,7 @@
 		</div>
 		<div class="flex items-center gap-2">
 			<a
-				href="/scheduling/week"
+				href={resolve('/scheduling/week')}
 				class="flex h-11 items-center rounded-md border border-line-control px-3 text-ui text-ink transition-colors outline-none hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-focus-ring focus-visible:outline-solid lg:h-9"
 			>
 				This week

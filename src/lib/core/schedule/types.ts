@@ -48,6 +48,8 @@ export type ScheduleEntry = Slot & {
 export type EmployeeRow = {
 	readonly id: string;
 	readonly name: string;
+	/** The login this employee is linked to, when they have one. See `claimEmployee`. */
+	readonly userId: string | null;
 	readonly teamIds: readonly string[];
 };
 

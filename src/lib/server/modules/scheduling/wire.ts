@@ -85,7 +85,7 @@ export function parseScheduleEntry(form: FormData): Parsed<NewScheduleEntry> {
 	if (typeof rawAssignee === 'string' && rawAssignee.includes(':')) {
 		const kind = rawAssignee.slice(0, rawAssignee.indexOf(':'));
 		const id = rawAssignee.slice(rawAssignee.indexOf(':') + 1);
-		if (isAssigneeKind(kind) && id.length > 0) assignee = { kind, id };
+		if (isAssigneeKind(kind) && isId(id)) assignee = { kind, id };
 	}
 	if (!assignee) errors.assignee = 'Choose who this work is for: a person, or a team';
 
@@ -117,6 +117,15 @@ export function parseScheduleEntry(form: FormData): Parsed<NewScheduleEntry> {
 	return { ok: true, value: { assignee, day, startMinute, endMinute } };
 }
 
+/**
+ * Every id in these forms is one of our own uuids. Checked at the boundary so a tampered or
+ * stale value is a 422 with a sentence, not a `22P02` the database throws and a catch-all turns
+ * into a 500 — the same courtesy `parseNewJob` pays `customerId` through zod.
+ */
+export function isId(value: unknown): value is string {
+	return typeof value === 'string' && z.uuid().safeParse(value).success;
+}
+
 /** A person's or a team's name from the add forms: trimmed, present, and short enough to say. */
 export function parseName(form: FormData, field: string): Parsed<string> {
 	const raw = form.get(field);
@@ -135,12 +144,7 @@ export function parseMembership(
 	const employeeId = form.get('employeeId');
 	const teamId = form.get('teamId');
 	const on = form.get('on');
-	if (
-		typeof employeeId !== 'string' ||
-		employeeId.length === 0 ||
-		typeof teamId !== 'string' ||
-		teamId.length === 0
-	) {
+	if (!isId(employeeId) || !isId(teamId)) {
 		return { ok: false, errors: { membership: 'Choose the person and the team' } };
 	}
 	return { ok: true, value: { employeeId, teamId, on: on === 'true' } };
