@@ -36,7 +36,17 @@
  * last slot does not move it back; that would be derivation, and the person who wants it back in
  * the pile says so on the job.
  */
-import { check, date, index, integer, pgTable, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
+import {
+	check,
+	date,
+	index,
+	integer,
+	pgTable,
+	text,
+	timestamp,
+	unique,
+	uuid
+} from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { MINUTES_IN_DAY } from '$lib/core/calendar';
 import { businessId, id, timestamps } from '../base';
@@ -74,10 +84,7 @@ export const scheduleEntry = pgTable(
 		unique('scheduling_schedule_business_id_unique').on(t.businessId, t.id),
 
 		// An entry describes itself through its job, or by its own title.
-		check(
-			'scheduling_schedule_titled',
-			sql`${t.jobId} is not null or ${t.title} is not null`
-		),
+		check('scheduling_schedule_titled', sql`${t.jobId} is not null or ${t.title} is not null`),
 		// A person, or a team. Exactly one.
 		check(
 			'scheduling_schedule_one_assignee',

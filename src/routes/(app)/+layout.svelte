@@ -127,6 +127,7 @@
 				today={data.today}
 				userInitials={data.person.initials}
 				userName={data.person.name}
+				unread={data.unread}
 				onSearch={() => palette?.openBar()}
 			/>
 		</div>
@@ -138,6 +139,7 @@
 				userInitials={data.person.initials}
 				userName={data.person.name}
 				aiEnabled={data.aiEnabled}
+				unread={data.unread}
 				onSearch={() => palette?.openBar()}
 			/>
 		</div>

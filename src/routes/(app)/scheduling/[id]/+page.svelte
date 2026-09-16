@@ -15,4 +15,11 @@
 	</div>
 {/if}
 
-<JobDetail job={data.job} commercial={data.commercial} readOnly={data.readOnly} />
+<JobDetail
+	job={data.job}
+	commercial={data.commercial}
+	slots={data.slots}
+	employees={data.employees}
+	teams={data.teams}
+	readOnly={data.readOnly}
+/>

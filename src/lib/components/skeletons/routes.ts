@@ -20,9 +20,12 @@ import ItemListSkeleton from './ItemListSkeleton.svelte';
 import JobDetailSkeleton from './JobDetailSkeleton.svelte';
 import JobListSkeleton from './JobListSkeleton.svelte';
 import ModuleCardSkeleton from './ModuleCardSkeleton.svelte';
+import NotificationsSkeleton from './NotificationsSkeleton.svelte';
+import PeopleSkeleton from './PeopleSkeleton.svelte';
 import QuoteEditorSkeleton from './QuoteEditorSkeleton.svelte';
 import QuoteListSkeleton from './QuoteListSkeleton.svelte';
 import SettingsSkeleton from './SettingsSkeleton.svelte';
+import WeekSkeleton from './WeekSkeleton.svelte';
 import WorkingsSkeleton from './WorkingsSkeleton.svelte';
 
 export const ROUTE_SKELETONS = {
@@ -36,8 +39,11 @@ export const ROUTE_SKELETONS = {
 	'/(app)/inventory': ItemListSkeleton,
 	'/(app)/inventory/[id]': ItemDetailSkeleton,
 	'/(app)/inventory/counts/[id]': CountSheetSkeleton,
+	'/(app)/notifications': NotificationsSkeleton,
 	'/(app)/scheduling': JobListSkeleton,
 	'/(app)/scheduling/[id]': JobDetailSkeleton,
+	'/(app)/scheduling/people': PeopleSkeleton,
+	'/(app)/scheduling/week': WeekSkeleton,
 	'/(app)/settings': SettingsSkeleton,
 	'/(app)/settings/modules': SettingsSkeleton
 } satisfies Partial<Record<RouteId, Component>>;

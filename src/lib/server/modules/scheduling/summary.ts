@@ -7,21 +7,51 @@
  *
  * Resume: work under way, so the job somebody was in the middle of is one tap away.
  */
+import { addDays, formatMinuteOfDay, todayIn } from '$lib/core/calendar';
 import { jobTitle, statusLabel } from '$lib/core/jobs';
 import { readiness } from '$lib/server/core/home/readiness';
 import type {
+	AgendaContribution,
 	ModuleSummary,
 	ResumeCard,
 	StandingPoint,
 	SummaryInput
 } from '$lib/server/core/home/types';
 import { countJobs, jobsUnderWay, unscheduledJobs } from '$lib/server/core/jobs';
+import { entriesBetween } from './queries';
 
 const RESUME_LIMIT = 3;
 
+/** Coming up reaches a week out — the same horizon the board plans in. */
+const AGENDA_DAYS = 7;
+
 export async function summariseScheduling(input: SummaryInput): Promise<ModuleSummary> {
-	const [standing, resume] = await Promise.all([howJobsStand(input), underWay(input)]);
-	return { standing, resume, figures: [], agenda: [] };
+	const [standing, resume, agenda] = await Promise.all([
+		howJobsStand(input),
+		underWay(input),
+		onThePlan(input)
+	]);
+	return { standing, resume, figures: [], agenda };
+}
+
+/** "Thabo Nkosi on Geyser replacement · 08:00 to 10:00, Fynbos Interiors". */
+async function onThePlan(input: SummaryInput): Promise<readonly AgendaContribution[]> {
+	const today = todayIn(input.now);
+	const entries = await entriesBetween(input.tx, today, addDays(today, AGENDA_DAYS));
+
+	return entries.map((entry) => ({
+		id: entry.id,
+		// Midday UTC, so the calendar day survives a timezone shift on its way to being
+		// formatted — the same transport `quoting/summary.ts` uses.
+		on: new Date(`${entry.day}T12:00:00Z`),
+		title: `${entry.assignee.name} on ${entry.title}`,
+		detail: [
+			`${formatMinuteOfDay(entry.startMinute)} to ${formatMinuteOfDay(entry.endMinute)}`,
+			entry.customerName
+		]
+			.filter(Boolean)
+			.join(', ')
+	}));
 }
 
 async function howJobsStand(input: SummaryInput): Promise<StandingPoint | null> {

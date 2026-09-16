@@ -23,8 +23,7 @@ export function weekBoard(
 		entries: entries
 			.filter((entry) => entry.day === day)
 			.toSorted(
-				(a, b) =>
-					a.startMinute - b.startMinute || a.assignee.name.localeCompare(b.assignee.name)
+				(a, b) => a.startMinute - b.startMinute || a.assignee.name.localeCompare(b.assignee.name)
 			)
 	}));
 }

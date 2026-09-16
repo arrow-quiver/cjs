@@ -337,7 +337,9 @@ describe('nothing here is deleted', () => {
 
 		const schedule = await messageFromRejection(
 			as(mine, async (tx) => {
-				await tx.execute(sql`delete from scheduling_schedule where business_id = ${mine.business.id}`);
+				await tx.execute(
+					sql`delete from scheduling_schedule where business_id = ${mine.business.id}`
+				);
 			})
 		);
 		expect(schedule).toMatch(/permission denied/i);

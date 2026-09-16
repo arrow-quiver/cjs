@@ -46,7 +46,7 @@ export const CONTRIBUTORS: readonly SummaryContributor[] = Object.freeze([
 	{
 		module: 'scheduling',
 		// No figures: a job is not money. Its commercial state is the documents' to report.
-		panels: ['standing', 'resume'],
+		panels: ['standing', 'resume', 'agenda'],
 		summarise: summariseScheduling
 	}
 ]);

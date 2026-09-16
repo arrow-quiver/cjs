@@ -3,11 +3,32 @@
 	import { CreateJobDialog, JobDetail, JobList } from '$lib/components/scheduling';
 	import type { CreateCustomer } from '$lib/components/customers';
 	import type { JobFilter, JobRow } from '$lib/core/jobs';
+	import type { EmployeeRow, ScheduleEntry, TeamRow } from '$lib/core/schedule';
 
 	const { Story } = defineMeta({
 		title: 'Jobs/Pipeline',
 		parameters: { layout: 'fullscreen' }
 	});
+
+	const EMPLOYEES: readonly EmployeeRow[] = [
+		{ id: 'e-1', name: 'Thabo Nkosi', teamIds: ['t-1'] },
+		{ id: 'e-2', name: 'Anele Mthembu', teamIds: [] }
+	];
+
+	const TEAMS: readonly TeamRow[] = [{ id: 't-1', name: 'Install crew', memberCount: 2 }];
+
+	const SLOTS: readonly ScheduleEntry[] = [
+		{
+			id: 's-1',
+			jobId: 'j-1',
+			title: 'Geyser replacement',
+			customerName: 'Fynbos Interiors',
+			assignee: { kind: 'employee', id: 'e-1', name: 'Thabo Nkosi' },
+			day: '2026-09-15',
+			startMinute: 480,
+			endMinute: 600
+		}
+	];
 
 	const JOBS: readonly JobRow[] = [
 		{
@@ -101,13 +122,26 @@
 -->
 <Story name="Done, and still owed" asChild>
 	<div class="min-h-svh bg-surface-base">
-		<JobDetail job={{ ...JOBS[0], status: 'done' }} commercial="Invoiced · R2 400,00 still owed" />
+		<JobDetail
+			job={{ ...JOBS[0], status: 'done' }}
+			commercial="Invoiced · R2 400,00 still owed"
+			slots={SLOTS}
+			employees={EMPLOYEES}
+			teams={TEAMS}
+		/>
 	</div>
 </Story>
 
 <Story name="A removed module, read only" asChild>
 	<div class="min-h-svh bg-surface-base">
-		<JobDetail job={JOBS[1]} commercial="Paid in full" readOnly />
+		<JobDetail
+			job={JOBS[1]}
+			commercial="Paid in full"
+			slots={SLOTS}
+			employees={[]}
+			teams={[]}
+			readOnly
+		/>
 	</div>
 </Story>
 

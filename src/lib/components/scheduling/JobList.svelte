@@ -71,9 +71,17 @@
 			<h1 class="mt-1 text-[24px] font-semibold text-ink">Jobs</h1>
 			<p class="mt-1 text-ui text-ink-secondary">{sentence}</p>
 		</div>
-		{#if !readOnly && !moduleIsEmpty}
-			{@render newJob()}
-		{/if}
+		<div class="flex items-center gap-2">
+			<a
+				href="/scheduling/week"
+				class="flex h-11 items-center rounded-md border border-line-control px-3 text-ui text-ink transition-colors outline-none hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-focus-ring focus-visible:outline-solid lg:h-9"
+			>
+				This week
+			</a>
+			{#if !readOnly && !moduleIsEmpty}
+				{@render newJob()}
+			{/if}
+		</div>
 	</div>
 
 	<JobFilterTabs active={filter} {counts} {hrefFor} />

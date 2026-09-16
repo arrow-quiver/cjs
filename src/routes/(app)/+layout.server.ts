@@ -11,6 +11,7 @@
  * onboarding, both from one place, for every route inside the shell at once.
  */
 import { withBusiness } from '$lib/server/core/ctx';
+import { unreadNotifications } from '$lib/server/core/notifications';
 import { monthlyTotal } from '$lib/server/core/modules/catalogue';
 import { sidebarGroups } from '$lib/components/shell/nav';
 import { initialsOf, tenantSubtitle } from '$lib/components/shell/identity';
@@ -51,7 +52,9 @@ export const load: LayoutServerLoad = async (event) => {
 			access: ctx.access,
 			/** The same function T11's switcher reads. One sum, two screens. */
 			monthlyTotal: monthlyTotal(ctx.access),
-			today: formatToday(ctx.business.locale, new Date())
+			today: formatToday(ctx.business.locale, new Date()),
+			/** What the bell shows. Zero for a login no employee is linked to, which is honest. */
+			unread: await unreadNotifications(ctx.tx, ctx.userId)
 		};
 	});
 };

@@ -13,7 +13,9 @@
 	 * the trigger and NOTHING ELSE — no nav item, no action and no route is conditioned on it
 	 * anywhere in the product. `search.test.ts` asserts that rather than trusting it.
 	 */
+	import Bell from '@lucide/svelte/icons/bell';
 	import Search from '@lucide/svelte/icons/search';
+	import { resolve } from '$app/paths';
 	import * as Avatar from '$lib/components/ui/avatar/index.js';
 
 	let {
@@ -22,12 +24,15 @@
 		today,
 		userInitials,
 		userName,
+		/** Unread notifications, counted on the server with the rest of the shell's facts. */
+		unread = 0,
 		onSearch
 	}: {
 		aiEnabled: boolean;
 		today: string;
 		userInitials: string;
 		userName: string;
+		unread?: number;
 		onSearch: () => void;
 	} = $props();
 </script>
@@ -52,6 +57,22 @@
 			</button>
 		{/if}
 	</div>
+
+	<a
+		href={resolve('/notifications')}
+		aria-label={unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'}
+		class="relative flex size-[34px] shrink-0 items-center justify-center rounded-md text-ink-secondary transition-colors outline-none hover:bg-surface-raised hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-focus-ring focus-visible:outline-solid"
+	>
+		<Bell size={17} aria-hidden="true" />
+		{#if unread > 0}
+			<span
+				aria-hidden="true"
+				class="absolute top-1 right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-wrong-ink px-1 numeric text-[10px] leading-none font-medium text-surface-base"
+			>
+				{unread > 99 ? '99+' : unread}
+			</span>
+		{/if}
+	</a>
 
 	<span class="text-helper text-ink-muted">{today}</span>
 
