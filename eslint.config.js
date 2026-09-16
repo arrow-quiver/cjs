@@ -6,6 +6,7 @@ import path from 'node:path';
 import js from '@eslint/js';
 import svelte from 'eslint-plugin-svelte';
 import { defineConfig, includeIgnoreFile } from 'eslint/config';
+import { builtinRules } from 'eslint/use-at-your-own-risk';
 import globals from 'globals';
 import ts from 'typescript-eslint';
 
@@ -21,8 +22,63 @@ const gitignorePath = path.resolve(import.meta.dirname, '.gitignore');
  * Several point at directories that do not exist yet (they land in M2–M4). That is
  * deliberate — a boundary has to be in place before the first line of code inside it, not
  * retrofitted after something has already crossed it.
+ *
+ * ── WHY EVERY ZONE HAS ITS OWN RULE NAME ─────────────────────────────────────────────
+ *
+ * Flat config merges rule options last-match-wins, per rule name. When every zone was
+ * configured as `no-restricted-imports`, a later zone matching the same file REPLACED the
+ * earlier zones' options instead of adding to them. Zone 11 matches every file and came
+ * last, so for most of the codebase zones 1 to 9 fired on nothing, and nothing said so.
+ *
+ * So each zone is its own rule: the two core rules, re-exposed under the `zones` plugin with
+ * one name per zone. Two blocks can only overwrite each other now if they name the same
+ * zone, and `eslint.config.test.ts` proves every zone still fires on a file that breaks
+ * several at once. A disable comment names the zone it is suppressing
+ * (`zones/float-money`), which also says why.
+ *
+ * `no-restricted-imports` does not see `await import(...)`, so the zones that guard a
+ * dangerous handle carry a `-dynamic` twin with the same `ignores`.
  */
-const architectureZones = [
+const coreRule = (name) => {
+	const rule = builtinRules.get(name);
+	if (!rule) {
+		// Loud on purpose. Without this the zones would quietly fire on nothing again.
+		throw new Error(
+			`eslint.config.js: ESLint no longer exposes the core rule "${name}", which every architecture zone is built on.`
+		);
+	}
+	return rule;
+};
+const restrictedImports = coreRule('no-restricted-imports');
+const restrictedSyntax = coreRule('no-restricted-syntax');
+
+export const ZONE_RULES = {
+	'db-client': restrictedImports,
+	'db-client-dynamic': restrictedSyntax,
+	'ui-barrel': restrictedImports,
+	'cross-module': restrictedImports,
+	'float-columns': restrictedImports,
+	'money-ctor': restrictedImports,
+	'money-ctor-dynamic': restrictedSyntax,
+	'float-money': restrictedSyntax,
+	'payment-sdk': restrictedImports,
+	'system-principal': restrictedImports,
+	'system-principal-dynamic': restrictedSyntax,
+	fixtures: restrictedImports,
+	'fixtures-dynamic': restrictedSyntax,
+	'no-timers': restrictedSyntax,
+	'validation-barrel': restrictedImports
+};
+
+const zonesPlugin = { meta: { name: 'zones' }, rules: ZONE_RULES };
+
+/** A `-dynamic` twin: the same boundary, for `import()` of a path matching `pattern`. */
+const dynamicImport = (pattern, message) => [
+	'error',
+	{ selector: `ImportExpression[source.value=${pattern}]`, message }
+];
+
+export const architectureZones = [
 	// 1. Nobody outside db/ may touch the unscoped connection.
 	//
 	//    `ctx.ts` is on this list because it IS the exception the architecture describes:
@@ -31,6 +87,7 @@ const architectureZones = [
 	//    single query that must run before a tenant exists — resolving which business a
 	//    signed-in person is acting for.
 	{
+		name: 'zones/db-client',
 		files: ['src/**/*.{ts,js,svelte}'],
 		ignores: [
 			'src/lib/server/core/db/**',
@@ -40,10 +97,14 @@ const architectureZones = [
 			// unauthenticated path in the product is visible in the file list.
 			'src/lib/server/core/share.ts',
 			'src/lib/server/auth.ts',
-			'src/hooks.server.ts'
+			'src/hooks.server.ts',
+			// Tests are where the unscoped connection is the thing under test: RLS is proved by
+			// connecting as the application role and watching a policy refuse.
+			'src/**/*.test.ts',
+			'src/**/*.spec.ts'
 		],
 		rules: {
-			'no-restricted-imports': [
+			'zones/db-client': [
 				'error',
 				{
 					patterns: [
@@ -54,15 +115,20 @@ const architectureZones = [
 						}
 					]
 				}
-			]
+			],
+			'zones/db-client-dynamic': dynamicImport(
+				'/(^|\\/)core\\/db\\/client$/',
+				'Never import unsafeDb, dynamically or otherwise. Take a Ctx from withModule(event, key, intent).'
+			)
 		}
 	},
 
 	// 2. Modules import UI from $lib/ui only, so every module looks like the product.
 	{
+		name: 'zones/ui-barrel',
 		files: ['src/lib/modules/**', 'src/routes/(app)/**'],
 		rules: {
-			'no-restricted-imports': [
+			'zones/ui-barrel': [
 				'error',
 				{
 					patterns: [
@@ -77,47 +143,40 @@ const architectureZones = [
 		}
 	},
 
-	// 3. Modules never import each other except through <module>/public.ts.
+	// 3. Modules never import each other except through <module>/public.ts. Server core is held
+	//    to the same boundary: Home's registry and the jobs queries read modules, and they
+	//    read them through the same front door as everyone else.
+	//
+	//    A module's own files import each other relatively (`./effects`), which no pattern here
+	//    matches. There used to be a block switching the rule off for a module's internals; it
+	//    switched it off for every OTHER module's internals too, so it is gone. Tests reach
+	//    into internals to seed state, and are exempt.
 	{
-		files: ['src/lib/server/modules/**', 'src/lib/modules/**'],
+		name: 'zones/cross-module',
+		files: ['src/lib/server/modules/**', 'src/lib/modules/**', 'src/lib/server/core/**'],
+		ignores: ['src/**/*.test.ts', 'src/**/*.spec.ts'],
 		rules: {
-			'no-restricted-imports': [
+			'zones/cross-module': [
 				'error',
 				{
 					patterns: [
 						{
-							group: [
-								'$lib/server/modules/*/queries',
-								'$lib/server/modules/*/schema',
-								'$lib/server/modules/*/effects',
-								'$lib/server/modules/*/summary'
-							],
+							group: ['$lib/server/modules/*/*', '!$lib/server/modules/*/public'],
 							message:
-								'Cross-module server imports go through <module>/public.ts only. Anything else couples two modules and breaks graceful degradation when one is not owned.'
+								'Cross-module server imports go through <module>/public.ts only. Anything else couples two modules and breaks graceful degradation when one is not owned. Within a module, import siblings relatively.'
 						}
 					]
 				}
 			]
 		}
 	},
-	{
-		// A module's own internals may import each other freely.
-		files: [
-			'src/lib/server/modules/*/public.ts',
-			'src/lib/server/modules/*/queries.ts',
-			'src/lib/server/modules/*/effects.ts',
-			'src/lib/server/modules/*/summary.ts',
-			'src/lib/server/modules/*/printable.ts',
-			'src/lib/server/modules/*/firstrun.ts'
-		],
-		rules: { 'no-restricted-imports': 'off' }
-	},
 
 	// 4. Float column types cannot even be declared. Money is int8 cents.
 	{
+		name: 'zones/float-columns',
 		files: ['src/lib/server/**/schema*.ts', 'src/lib/server/**/schema/**/*.ts'],
 		rules: {
-			'no-restricted-imports': [
+			'zones/float-columns': [
 				'error',
 				{
 					paths: [
@@ -135,6 +194,7 @@ const architectureZones = [
 
 	// 5. Money constructors are reachable from three places only.
 	{
+		name: 'zones/money-ctor',
 		files: ['src/**/*.{ts,js,svelte}'],
 		ignores: [
 			'src/lib/core/money/**',
@@ -143,7 +203,7 @@ const architectureZones = [
 			'src/**/*.spec.ts'
 		],
 		rules: {
-			'no-restricted-imports': [
+			'zones/money-ctor': [
 				'error',
 				{
 					patterns: [
@@ -154,17 +214,23 @@ const architectureZones = [
 						}
 					]
 				}
-			]
+			],
+			'zones/money-ctor-dynamic': dynamicImport(
+				'/(^|\\/)core\\/money\\/ctor$/',
+				'Money is constructed by db/map.ts or parseMoneyInput. A dynamic import is not a third way in.'
+			)
 		}
 	},
 
 	// 6. Float-money smoke alarm. A BACKSTOP, not the lock — the lock is the type system.
 	//    A legitimate non-money use needs an explicit eslint-disable with a reason.
+	//    Suppress it with `zones/float-money`.
 	{
+		name: 'zones/float-money',
 		files: ['src/**/*.{ts,js,svelte}'],
 		ignores: ['src/lib/core/money/**'],
 		rules: {
-			'no-restricted-syntax': [
+			'zones/float-money': [
 				'error',
 				{
 					selector: "CallExpression[callee.name='parseFloat']",
@@ -186,10 +252,11 @@ const architectureZones = [
 
 	// 7. Only the billing adapter may import a payment provider SDK.
 	{
+		name: 'zones/payment-sdk',
 		files: ['src/**/*.{ts,js,svelte}'],
 		ignores: ['src/lib/server/core/billing/adapters/**'],
 		rules: {
-			'no-restricted-imports': [
+			'zones/payment-sdk': [
 				'error',
 				{
 					paths: [
@@ -206,6 +273,7 @@ const architectureZones = [
 	//    without entitlement checks, so its blast radius is bounded by this list rather
 	//    than by convention.
 	{
+		name: 'zones/system-principal',
 		files: ['src/**/*.{ts,js,svelte}'],
 		ignores: [
 			'src/lib/server/core/system.ts',
@@ -216,7 +284,7 @@ const architectureZones = [
 			'src/**/*.test.ts'
 		],
 		rules: {
-			'no-restricted-imports': [
+			'zones/system-principal': [
 				'error',
 				{
 					patterns: [
@@ -227,7 +295,11 @@ const architectureZones = [
 						}
 					]
 				}
-			]
+			],
+			'zones/system-principal-dynamic': dynamicImport(
+				'/(^|\\/)core\\/system$/',
+				'withSystem() belongs to background jobs only, however it is imported.'
+			)
 		}
 	},
 
@@ -235,10 +307,11 @@ const architectureZones = [
 	//    must never do. They are useful enough to be tempting as a seeding shortcut, so the
 	//    boundary is a rule rather than a comment.
 	{
+		name: 'zones/fixtures',
 		files: ['src/**/*.{ts,js,svelte}'],
 		ignores: ['src/**/*.test.ts', 'src/**/*.spec.ts'],
 		rules: {
-			'no-restricted-imports': [
+			'zones/fixtures': [
 				'error',
 				{
 					patterns: [
@@ -249,16 +322,21 @@ const architectureZones = [
 						}
 					]
 				}
-			]
+			],
+			'zones/fixtures-dynamic': dynamicImport(
+				'/(^|\\/)(core\\/db\\/)?fixtures$/',
+				'db/fixtures is test-only, however it is imported.'
+			)
 		}
 	},
 
 	// 10. Anti-dark-pattern: no countdowns anywhere near billing. The undo window shows a
 	//     DATE, never a ticking clock. Manufactured urgency is off the table.
 	{
+		name: 'zones/no-timers',
 		files: ['src/lib/server/core/billing/**', 'src/routes/(app)/settings/modules/**'],
 		rules: {
-			'no-restricted-syntax': [
+			'zones/no-timers': [
 				'error',
 				{
 					selector: "CallExpression[callee.name='setInterval']",
@@ -274,10 +352,11 @@ const architectureZones = [
 	//     directly has walked past the only place that explains what a message owes a person.
 	//     The boundary goes in before the first line of code reaches around it.
 	{
+		name: 'zones/validation-barrel',
 		files: ['src/**/*.{ts,js,svelte}'],
 		ignores: ['src/lib/core/validation/**', 'src/**/*.test.ts', 'src/**/*.spec.ts'],
 		rules: {
-			'no-restricted-imports': [
+			'zones/validation-barrel': [
 				'error',
 				{
 					patterns: [
@@ -323,5 +402,6 @@ export default defineConfig(
 			}
 		}
 	},
+	{ plugins: { zones: zonesPlugin } },
 	...architectureZones
 );

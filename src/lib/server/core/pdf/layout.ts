@@ -119,7 +119,7 @@ function wrap(text: string, width: number, size: number): string[] {
 	const perChar = size * 0.47;
 	// Characters per line, not money: there is no rounding policy to respect, because half a
 	// character cannot be typeset.
-	// eslint-disable-next-line no-restricted-syntax -- not money, see above
+	// eslint-disable-next-line zones/float-money -- not money, see above
 	const max = Math.max(8, Math.trunc(width / perChar));
 	const words = text.split(/\s+/);
 	const lines: string[] = [];

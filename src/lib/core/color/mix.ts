@@ -18,7 +18,7 @@ const clamp255 = (v: number) => Math.min(255, Math.max(0, v));
 const toHex = ({ r, g, b }: Rgb): string =>
 	'#' +
 	[r, g, b]
-		// eslint-disable-next-line no-restricted-syntax -- an sRGB channel is not money.
+		// eslint-disable-next-line zones/float-money -- an sRGB channel is not money.
 		.map((v) => Math.round(clamp255(v)).toString(16).padStart(2, '0'))
 		.join('');
 

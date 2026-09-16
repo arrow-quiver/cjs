@@ -81,7 +81,7 @@ export class RateLimiter {
 		// how a client-side retry loop turns one refusal into a permanent one.
 		const msToNext = (1 - refilled) / this.#perMs;
 		// Seconds, not money — there is no rounding policy to respect here.
-		// eslint-disable-next-line no-restricted-syntax -- not money, see above
+		// eslint-disable-next-line zones/float-money -- not money, see above
 		return { allowed: false, retryAfterSeconds: Math.max(1, Math.ceil(msToNext / 1000)) };
 	}
 

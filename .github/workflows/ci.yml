@@ -1,16 +1,18 @@
-# THE REPO'S FIRST CI — and deliberately only the two browser suites.
+# THE REPO'S CI. Everything here needs NO database and NO secrets, so it can block every
+# pull request without a single credential in this file.
 #
-# `test:stories` is the accessibility gate: every story file, in light AND dark, with axe at
+# `static` is the fast gate: Prettier and ESLint (which carries the architecture zones, proved to
+# fire by `eslint.config.test.ts`), then the `pure` vitest project, which holds every test that
+# needs nothing but Node. That includes the token contrast floors and the zone test itself.
+#
+# `browser-suites` is the accessibility gate: every story file, in light AND dark, with axe at
 # error severity (.storybook/preview.ts). `test:mobile` holds the 44px touch floors and the
-# no-sideways-scroll assertions at 390px. Both mount components in a headless Chromium and
-# need NO database and NO secrets — vite.config.ts gives the RLS setup file only to the
-# `unit` project — so they can block every pull request today without a single credential
-# in this file.
+# no-sideways-scroll assertions at 390px. Both mount components in a headless Chromium.
 #
-# The unit suite is excluded on purpose: it needs a Neon DATABASE_URL under a non-BYPASSRLS
+# The `unit` suite is excluded on purpose: it needs a Neon DATABASE_URL under a non-BYPASSRLS
 # role (scripts/vitest-setup.ts hard-refuses anything else), and wiring that secret is its
-# own follow-up. So is marking this workflow a required check in branch protection, which
-# should happen only after its first green run. Both follow-ups inherit this file's shape:
+# own follow-up. So is marking these jobs required checks in branch protection, which
+# should happen only after their first green run. Both follow-ups inherit this file's shape:
 # least-privilege permissions, actions pinned to full commit SHAs.
 name: ci
 
@@ -20,12 +22,21 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# The job only checks out and runs tests; nothing here may write to the repo, and the
+# The jobs only check out and run tests; nothing here may write to the repo, and the
 # future secret-bearing unit-suite workflow copies this line rather than loosening it.
 permissions:
   contents: read
 
 jobs:
+  static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
+      - run: bun run test:pure
+
   browser-suites:
     runs-on: ubuntu-latest
     steps:

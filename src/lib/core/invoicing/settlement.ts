@@ -97,7 +97,7 @@ export function canReverse(
  * be pretending a duration is an amount.
  */
 export function daysSince(at: Date, now: Date): number {
-	// eslint-disable-next-line no-restricted-syntax -- a duration in days, not money
+	// eslint-disable-next-line zones/float-money -- a duration in days, not money
 	return Math.max(0, Math.floor((now.getTime() - at.getTime()) / 86_400_000));
 }
 

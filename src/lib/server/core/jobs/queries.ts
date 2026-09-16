@@ -9,11 +9,10 @@
  * THE ASSEMBLER CROSSES TWO MODULE BOUNDARIES, THROUGH THEIR FRONT DOORS
  * ---------------------------------------------------------------------
  * `jobCommercialState` needs Quoting's quotes and Invoicing's invoices, and it reaches both only
- * through their `public.ts` — never through their queries. That is the boundary this codebase
- * keeps everywhere, and it is worth saying out loud here that keeping it is a CONVENTION upheld
- * by review and by this comment: the ESLint zone that was meant to enforce it does not currently
- * fire on files under `server/core/` (see the commit that added this file). `home/registry.ts`
- * keeps the same convention voluntarily and for the same reason.
+ * through their `public.ts`, never through their queries. That is the boundary this codebase
+ * keeps everywhere, and under `server/core/` it is enforced, not just kept: `zones/cross-module`
+ * in `eslint.config.js` covers this directory, and `eslint.config.test.ts` proves it fires here.
+ * `home/registry.ts` sits behind the same rule for the same reason.
  *
  * And it asks each module only if the business OWNS it, at `write`. `home/registry.ts` gives the
  * argument: a REMOVED module is still readable and exportable — that is what the middle access

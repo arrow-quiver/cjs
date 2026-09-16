@@ -104,7 +104,7 @@ function agesSentence(youngest: number, oldest: number): string {
 function daysOld(at: Date, now: Date): number {
 	// Whole days, not money: there is no rounding policy to respect, and half a day ago is
 	// still "today" to the person reading it.
-	// eslint-disable-next-line no-restricted-syntax -- not money, see above
+	// eslint-disable-next-line zones/float-money -- not money, see above
 	return Math.max(0, Math.floor((now.getTime() - at.getTime()) / 86_400_000));
 }
 
