@@ -122,6 +122,63 @@ export function todayIn(now: Date, timeZone = 'Africa/Johannesburg'): CalendarDa
 	return formatter.format(now);
 }
 
+/**
+ * The Monday of the week a date falls in.
+ *
+ * A schedule week runs Monday to Sunday, because that is how a trade business plans: the week
+ * starts when the vans go out. `WEEKDAYS` above stays Sunday-first — that is `getUTCDay()`'s
+ * order, a fact about JavaScript rather than about weeks.
+ */
+export function startOfWeek(date: CalendarDate): CalendarDate {
+	const { year, month, day } = parts(date);
+	const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+	return addDays(date, -((weekday + 6) % 7));
+}
+
+/** The seven days of the week that starts at `start`, in order. */
+export function weekDays(start: CalendarDate): readonly CalendarDate[] {
+	return Array.from({ length: 7 }, (_, offset) => addDays(start, offset));
+}
+
+/**
+ * A TIME OF DAY IS MINUTES FROM MIDNIGHT.
+ *
+ * An integer, `0` to `1439`, for the reason a date here is a string: "on site at half past seven"
+ * is a promise about a clock face, not about an instant, and an integer of minutes cannot carry a
+ * timezone, a DST jump, or a float error. Postgres stores it in an `integer` column, and the
+ * arithmetic a clash check needs is two comparisons.
+ *
+ * A slot cannot cross midnight: its end is a minute later the same day. The business this serves
+ * schedules site visits, not night shifts, and a rule a CHECK constraint can state beats a
+ * wrap-around every reader has to re-derive.
+ */
+export type MinuteOfDay = number;
+
+export const MINUTES_IN_DAY = 1440;
+
+/** Is this a whole minute of a day, `0` up to but excluding midnight at `1440`? */
+export function isMinuteOfDay(value: unknown): value is MinuteOfDay {
+	return (
+		typeof value === 'number' && Number.isInteger(value) && value >= 0 && value < MINUTES_IN_DAY
+	);
+}
+
+/** `450` -> `"07:30"`. The 24-hour clock, zero-padded, as a time input writes it. */
+export function formatMinuteOfDay(minute: MinuteOfDay): string {
+	const hours = (minute - (minute % 60)) / 60;
+	return `${String(hours).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;
+}
+
+/** `"07:30"` -> `450`, or null for anything that is not a time of day. */
+export function parseMinuteOfDay(value: string): MinuteOfDay | null {
+	const match = /^(\d{1,2}):(\d{2})$/.exec(value.trim());
+	if (!match) return null;
+	const hours = Number(match[1]);
+	const minutes = Number(match[2]);
+	if (hours > 23 || minutes > 59) return null;
+	return hours * 60 + minutes;
+}
+
 /** `2026-08-04` + 14 days -> `2026-08-18`. Month and year roll over correctly. */
 export function addDays(date: CalendarDate, days: number): CalendarDate {
 	const { year, month, day } = parts(date);
