@@ -259,9 +259,7 @@ describe("a document cannot be linked to another tenant's job", () => {
 	 * `job_id -> core_job(id)` would accept this silently: every screen would still look correct,
 	 * and the link underneath would cross a tenant boundary.
 	 *
-	 * Note that `quoting_quote.customer_id` predates this idiom and is NOT composite, so it is
-	 * still open to the same assignment. Retrofitting it is a separate, larger decision; the
-	 * inconsistency is acknowledged here rather than implied safe.
+	 * The customer keys follow the same idiom since 0012; `customers.test.ts` holds those.
 	 */
 	it("refuses a quote pointing at another business's job", async () => {
 		const quoteId = randomUUID();

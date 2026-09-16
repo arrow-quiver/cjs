@@ -32,20 +32,9 @@
 	import Check from '@lucide/svelte/icons/check';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
-	import {
-		Button,
-		Field,
-		FieldError,
-		Input,
-		Label,
-		Refusal,
-		Select,
-		SelectContent,
-		SelectItem,
-		SelectTrigger,
-		Amount
-	} from '$lib/ui';
+	import { Button, Field, FieldError, Input, Label, Refusal, Amount } from '$lib/ui';
 	import { DocumentSheet } from '$lib/components/document';
+	import { CustomerField } from '$lib/components/customers';
 	import { checkQuantity, checkUnitPrice } from '$lib/core/validation';
 	import {
 		blankLine,
@@ -155,13 +144,12 @@
 		return `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`;
 	}
 
-	function chooseCustomer(id: string) {
+	function chooseCustomer(id: string, name: string) {
 		state.customerId = id;
-		const chosen = customers.find((c) => c.id === id);
 		// The name is filled in so the preview stops saying "No client chosen yet" immediately.
 		// The server retakes the full snapshot from `core_customer` on save — the address, the
 		// VAT number and the rest are not the browser's to invent.
-		if (chosen) state.name = chosen.name;
+		state.name = name;
 	}
 </script>
 
@@ -208,20 +196,12 @@
 			<h2 class="text-ui font-medium text-ink">Who it's for</h2>
 
 			<div class="mt-3 grid gap-4 sm:grid-cols-2">
-				<Field label="Client" id="invoice-client">
-					{#snippet control(field)}
-						<Select type="single" value={state.customerId ?? ''} onValueChange={chooseCustomer}>
-							<SelectTrigger {...field}>
-								{customers.find((c) => c.id === state.customerId)?.name ?? 'Choose a client'}
-							</SelectTrigger>
-							<SelectContent>
-								{#each customers as customer (customer.id)}
-									<SelectItem value={customer.id}>{customer.name}</SelectItem>
-								{/each}
-							</SelectContent>
-						</Select>
-					{/snippet}
-				</Field>
+				<CustomerField
+					id="invoice-client"
+					{customers}
+					value={state.customerId}
+					onchoose={(customer) => chooseCustomer(customer.id, customer.name)}
+				/>
 
 				<Field label="Send it to" id="invoice-email">
 					{#snippet control(field)}

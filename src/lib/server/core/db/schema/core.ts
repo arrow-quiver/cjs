@@ -173,7 +173,16 @@ export const customer = pgTable(
 	},
 	(t) => [
 		notBlank('core_customer_name_present', t.name),
-		index('core_customer_business_name_idx').on(t.businessId, t.name)
+		index('core_customer_business_name_idx').on(t.businessId, t.name),
+		/**
+		 * What every customer foreign key points at. Postgres checks referential integrity with row
+		 * security bypassed, so a key on `id` alone would accept business A's quote naming business
+		 * B's customer. `quoting_quote`, `invoicing_invoice` and `core_job` reference
+		 * `(business_id, id)` instead, which makes a cross-tenant link a database error. Those
+		 * composite keys are hand-written in `drizzle/0012_customer_keys.sql`, because drizzle-kit
+		 * has no builder for one.
+		 */
+		unique('core_customer_business_id_unique').on(t.businessId, t.id)
 	]
 );
 

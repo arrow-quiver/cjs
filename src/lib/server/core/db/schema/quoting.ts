@@ -58,7 +58,7 @@ import {
 	qtyE6,
 	timestamps
 } from '../base';
-import { business, customer } from './core';
+import { business } from './core';
 
 /**
  * Per-business quoting defaults.
@@ -135,8 +135,12 @@ export const quote = pgTable(
 		 * Nullable, because a fresh draft has no client yet — the design's editor opens with an
 		 * empty Client select. A quote that has left draft must have one, which is what
 		 * `customer_required_once_sent` says.
+		 *
+		 * No `.references()`: the key is composite, `(business_id, customer_id) -> core_customer
+		 * (business_id, id)`, hand-written in `drizzle/0012_customer_keys.sql` for the same reason
+		 * as `job_id` below.
 		 */
-		customerId: uuid().references(() => customer.id, { onDelete: 'restrict' }),
+		customerId: uuid(),
 
 		/**
 		 * THE WORK THIS QUOTE IS ABOUT — `core_job`.
@@ -149,9 +153,7 @@ export const quote = pgTable(
 		 * WHY COMPOSITE. Postgres performs referential integrity with row security BYPASSED, so a
 		 * single-column key would happily accept business A's quote pointing at business B's job.
 		 * The composite form makes a cross-tenant link a database error rather than a policy
-		 * nobody enforces. (`customer_id` above predates this idiom and is NOT composite;
-		 * retrofitting it is a separate decision, so the inconsistency is acknowledged here
-		 * rather than implied safe.)
+		 * nobody enforces. `customer_id` above follows the same idiom since 0012.
 		 *
 		 * NULLABLE, PERMANENTLY. A quote can be sent the moment somebody rings up, and a job is
 		 * created only when the client says yes — so a live quote has no job, and a declined or

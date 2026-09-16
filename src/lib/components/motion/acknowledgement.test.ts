@@ -183,6 +183,11 @@ const FETCHES: Readonly<
 		count: 1,
 		acknowledgement: 'Command bar search. The bar shows "Searching…" as soon as a query is typed.'
 	},
+	'lib/components/customers/request.ts': {
+		count: 1,
+		acknowledgement:
+			'Adding a client. The dialog\'s button goes pending and says "Adding…" on the press, and `tracked()` raises the activity bar.'
+	},
 	'routes/(app)/invoicing/[id]/+page.svelte': {
 		count: 1,
 		acknowledgement:
@@ -198,11 +203,18 @@ function blankComments(text: string): string {
 		.replace(/(^|\s)\/\/[^\n]*/g, blank);
 }
 
+/**
+ * Code that runs in the browser: every Svelte file, and every script under `lib/components`, where a
+ * request helper a component calls would otherwise sit outside the scan. Tests are not screens.
+ */
 function browserFiles(dir: string): string[] {
 	return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
 		const path = join(dir, entry.name);
 		if (entry.isDirectory()) return browserFiles(path);
-		return /\.svelte(\.ts)?$/.test(entry.name) ? [path] : [];
+		if (/\.(test|spec)\.ts$/.test(entry.name)) return [];
+		if (/\.svelte(\.ts)?$/.test(entry.name)) return [path];
+		const component = relative(SRC, path).replaceAll('\\', '/').startsWith('lib/components/');
+		return component && entry.name.endsWith('.ts') ? [path] : [];
 	});
 }
 
