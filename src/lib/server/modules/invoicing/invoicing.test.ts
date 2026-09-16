@@ -726,17 +726,9 @@ describe('the list', () => {
 	it('derives overdue from the due date rather than reading a column', async () => {
 		const id = await issued();
 
-		// Move the due date into the past. Done in SQL because the freeze trigger refuses it
-		// through the application — which is itself the point of the trigger.
-		await runScoped(thornhill.id, owner.id, (tx) =>
-			tx.execute(sql`
-				alter table invoicing_invoice disable trigger "invoicing_invoice_freeze"
-			`)
-		).catch(() => {
-			// The application role cannot disable a trigger it does not own, which is correct. The
-			// test below reads the derivation directly instead.
-		});
-
+		// The due date stays where it is: the freeze trigger refuses to move it on an issued
+		// invoice, and it must never be disabled to make a test convenient. A later clock asks
+		// the same question without writing anything.
 		const page = await as((tx) =>
 			listInvoices(tx, { pageSize: 100, now: new Date('2099-12-31T00:00:00Z') })
 		);
