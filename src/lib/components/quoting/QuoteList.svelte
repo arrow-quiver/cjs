@@ -67,9 +67,7 @@
 </script>
 
 {#snippet newQuote()}
-	<Button onclick={oncreate} disabled={creating}>
-		{creating ? 'Starting…' : 'New quote'}
-	</Button>
+	<Button onclick={oncreate} pending={creating} pendingLabel="Starting…">New quote</Button>
 {/snippet}
 
 <!--
@@ -85,9 +83,7 @@
 			<h1 class="text-[24px] font-semibold text-ink">Quotes</h1>
 			<p class="mt-1 text-ui text-ink-secondary">Branded quotes clients can accept online.</p>
 		</div>
-		<Button onclick={oncreate} disabled={creating}>
-			{creating ? 'Starting…' : 'New quote'}
-		</Button>
+		<Button onclick={oncreate} pending={creating} pendingLabel="Starting…">New quote</Button>
 	</div>
 
 	<!--

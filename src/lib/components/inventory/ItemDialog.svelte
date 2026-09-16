@@ -21,6 +21,7 @@
 	 */
 	import { untrack } from 'svelte';
 	import { enhance } from '$app/forms';
+	import { submission } from '$lib/components/motion';
 	import {
 		Button,
 		Dialog,
@@ -56,7 +57,14 @@
 		message?: string | null;
 	} = $props();
 
-	let busy = $state(false);
+	const saving = submission(() => async ({ update }) => {
+		// `reset: false` because four of these fields are bound state and the other four are not.
+		// A native form reset clears the DOM value of an input whose value the component is
+		// driving, leaving the price boxes looking empty while the state behind them still holds
+		// what was just saved. `?/create` redirects and `?/update` re-seeds on the next open, so
+		// there was nothing for the reset to do anyway.
+		await update({ reset: false });
+	});
 
 	const title = $derived(mode === 'create' ? 'Add an item' : 'Edit this item');
 	const action = $derived(mode === 'create' ? '?/create' : '?/update');
@@ -102,22 +110,7 @@
 
 <Dialog bind:open>
 	<DialogContent class="sm:max-w-lg">
-		<form
-			method="POST"
-			{action}
-			use:enhance={() => {
-				busy = true;
-				return async ({ update }) => {
-					// `reset: false` because four of these fields are bound state and the other four
-					// are not. A native form reset clears the DOM value of an input whose value the
-					// component is driving, leaving the price boxes looking empty while the state
-					// behind them still holds what was just saved. `?/create` redirects and `?/update`
-					// re-seeds on the next open, so there was nothing for the reset to do anyway.
-					await update({ reset: false });
-					busy = false;
-				};
-			}}
-		>
+		<form method="POST" {action} use:enhance={saving.enhance}>
 			<DialogHeader>
 				<DialogTitle>{title}</DialogTitle>
 				<DialogDescription>
@@ -259,8 +252,8 @@
 
 			<DialogFooter class="mt-6">
 				<Button type="button" variant="secondary" onclick={() => (open = false)}>Cancel</Button>
-				<Button type="submit" disabled={busy}>
-					{busy ? 'Saving…' : mode === 'create' ? 'Add item' : 'Save changes'}
+				<Button type="submit" pending={saving.pending} pendingLabel="Saving…">
+					{mode === 'create' ? 'Add item' : 'Save changes'}
 				</Button>
 			</DialogFooter>
 		</form>

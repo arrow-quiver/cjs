@@ -15,7 +15,7 @@
 		base: [
 			'flex h-[38px] w-full min-w-0 rounded-md px-3 text-ui',
 			'border border-line-control bg-surface-card text-ink placeholder:text-ink-muted',
-			'transition-colors duration-150 ease-out-forward',
+			'transition-colors',
 			'outline-none focus-visible:border-brand focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-ring-soft',
 			'aria-invalid:border-wrong-border',
 			'disabled:pointer-events-none disabled:bg-surface-raised disabled:text-ink-muted',

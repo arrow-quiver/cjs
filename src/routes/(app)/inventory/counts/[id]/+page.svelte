@@ -29,6 +29,7 @@
 	 * criterion, and one shared set of pure functions is the only way to keep it.
 	 */
 	import { enhance } from '$app/forms';
+	import { acknowledged, submission } from '$lib/components/motion';
 	import { onMount } from 'svelte';
 	import { Button, Refusal, qtyText } from '$lib/ui';
 	import {
@@ -56,6 +57,14 @@
 	// The endpoint is a function, not a captured string: SvelteKit reuses this component across a
 	// navigation from one count to another, and a URL frozen here would outlive the count it names.
 	const save = new CountAutosave({ endpoint: () => `/inventory/counts/${data.count.id}/save` });
+
+	/**
+	 * Applying a count can take a while, since it writes a movement per line. The button says so
+	 * the moment it is pressed, which is the M2 promise: acknowledged inside 400ms, completed
+	 * whenever the database is done.
+	 */
+	const goingBack = submission();
+	const applying = submission();
 
 	/** What the database holds, spelled the way the box will hold it. Blank means "not yet". */
 	function seedFrom(rows: readonly CountSheetRow[]): Record<string, string> {
@@ -199,14 +208,14 @@
 			<form
 				method="POST"
 				action="?/review"
-				use:enhance={async ({ cancel }) => {
+				use:enhance={acknowledged(async ({ cancel }) => {
 					await save.flush();
 					if (save.dirty) {
 						cancel();
 						return;
 					}
 					return async ({ update }) => update();
-				}}
+				})}
 			>
 				<Button type="submit">{reviewChangesLabel(changes)}</Button>
 			</form>
@@ -221,11 +230,25 @@
 		promise="This is the last point of return — nothing has changed yet."
 	>
 		{#snippet actions()}
-			<form method="POST" action="?/back" use:enhance>
-				<Button type="submit" variant="secondary">Go back and change something</Button>
+			<form method="POST" action="?/back" use:enhance={goingBack.enhance}>
+				<Button
+					type="submit"
+					variant="secondary"
+					disabled={applying.pending}
+					pending={goingBack.pending}
+				>
+					Go back and change something
+				</Button>
 			</form>
-			<form method="POST" action="?/apply" use:enhance>
-				<Button type="submit">Update stock</Button>
+			<form method="POST" action="?/apply" use:enhance={applying.enhance}>
+				<Button
+					type="submit"
+					disabled={goingBack.pending}
+					pending={applying.pending}
+					pendingLabel="Updating stock…"
+				>
+					Update stock
+				</Button>
 			</form>
 		{/snippet}
 	</CountFooter>

@@ -9,11 +9,12 @@
 	 * Bars are 10px high with a 5px radius. Three tones let a block of them read as a
 	 * paragraph rather than a wall — vary the tone and the width, not the height.
 	 *
-	 * The pulse stops entirely under `prefers-reduced-motion`; that rule lives in
-	 * `layout.css` and applies to everything, so there is nothing to remember here.
+	 * It does not pulse. A pulse fades out and back again, forever, and the motion standard is
+	 * forward only: nothing reverses and nothing loops. A skeleton is content, not motion, so it
+	 * holds still and stays visible under `prefers-reduced-motion` without any special case.
 	 */
 	export const skeletonVariants = tv({
-		base: 'block animate-pulse rounded-[5px]',
+		base: 'block rounded-[5px]',
 		variants: {
 			tone: {
 				default: 'bg-line-default',

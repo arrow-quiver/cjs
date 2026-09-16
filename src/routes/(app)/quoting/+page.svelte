@@ -8,6 +8,7 @@
 	 *   write  owned        — the module.
 	 */
 	import { enhance } from '$app/forms';
+	import { acknowledged } from '$lib/components/motion';
 	import { QuoteList } from '$lib/components/quoting';
 	import { LockedModule, RemovedModule } from '$lib/components/modules';
 	import type { PageData } from './$types';
@@ -47,13 +48,13 @@
 		method="POST"
 		action="?/create"
 		class="hidden"
-		use:enhance={() => {
+		use:enhance={acknowledged(() => {
 			creating = true;
 			return async ({ update }) => {
 				await update();
 				creating = false;
 			};
-		}}
+		})}
 	></form>
 
 	<QuoteList quotes={data.quotes} {creating} oncreate={() => form?.requestSubmit()} />

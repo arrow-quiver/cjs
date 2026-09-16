@@ -12,6 +12,7 @@
 	 * what the add-line row offers when Inventory is not owned, and where "add Invoicing" posts.
 	 */
 	import { enhance } from '$app/forms';
+	import { acknowledged } from '$lib/components/motion';
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import { Refusal } from '$lib/ui';
@@ -47,13 +48,13 @@
 		method="POST"
 		action="?/send"
 		class="hidden"
-		use:enhance={() => {
+		use:enhance={acknowledged(() => {
 			sending = true;
 			return async ({ update }) => {
 				await update();
 				sending = false;
 			};
-		}}
+		})}
 	></form>
 
 	<!--
@@ -108,7 +109,7 @@
 		method="POST"
 		action="/settings/modules?/add"
 		class="hidden"
-		use:enhance
+		use:enhance={acknowledged()}
 	>
 		<input type="hidden" name="module" value="invoicing" />
 	</form>
@@ -122,13 +123,13 @@
 		method="POST"
 		action="?/makeInvoice"
 		class="hidden"
-		use:enhance={() => {
+		use:enhance={acknowledged(() => {
 			makingInvoice = true;
 			return async ({ update }) => {
 				await update();
 				makingInvoice = false;
 			};
-		}}
+		})}
 	></form>
 
 	<SentQuote

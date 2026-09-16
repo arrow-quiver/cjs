@@ -23,6 +23,24 @@
 		counts: Readonly<Record<InvoiceFilter, number>>;
 		hrefFor: (filter: InvoiceFilter) => string;
 	} = $props();
+
+	/**
+	 * THE TAPPED TAB LIGHTS UP ON THE TAP. The next list has to come from the server, and until it
+	 * does the press is acknowledged by drawing the tapped tab as selected. This is the look only:
+	 * the link still navigates, the URL is still the truth, and `aria-current` keeps naming the
+	 * page actually showing. The request remembers which tab was active when it was made, so the
+	 * moment a new `active` arrives it stops applying.
+	 */
+	let requested = $state<{ filter: InvoiceFilter; from: InvoiceFilter } | null>(null);
+	const shown = $derived(requested && requested.from === active ? requested.filter : active);
+
+	function request(event: MouseEvent, filter: InvoiceFilter) {
+		// A modified click opens a new tab and leaves this page where it is.
+		if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+			return;
+		}
+		requested = { filter, from: active };
+	}
 </script>
 
 <!--
@@ -39,15 +57,17 @@
 <nav class="mt-5 flex flex-wrap items-center gap-1" aria-label="Filter invoices">
 	{#each INVOICE_FILTERS as filter (filter)}
 		{@const isActive = filter === active}
+		{@const isShown = filter === shown}
 		<a
 			href={hrefFor(filter)}
 			aria-current={isActive ? 'page' : undefined}
-			data-active={isActive ? 'true' : undefined}
+			data-active={isShown ? 'true' : undefined}
+			onclick={(event) => request(event, filter)}
 			class="rounded-[7px] px-3 py-1.5 text-ui transition-colors outline-none
 				hover:bg-surface-raised/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-focus-ring
 				focus-visible:outline-solid
 				data-[active=true]:bg-surface-raised data-[active=true]:font-medium
-				{isActive ? 'text-ink' : 'text-ink-secondary'}"
+				{isShown ? 'text-ink' : 'text-ink-secondary'}"
 		>
 			{filterLabel(filter)}
 			<!--

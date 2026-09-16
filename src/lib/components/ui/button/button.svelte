@@ -14,7 +14,7 @@
 		base: [
 			'group/button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap select-none',
 			'rounded-md text-ui font-medium',
-			'transition-colors duration-150 ease-out-forward',
+			'transition-colors',
 			// One ring, on every variant, in both themes: 2px --brand-focus-ring at 2px offset.
 			'outline-none focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-focus-ring',
 			'disabled:pointer-events-none aria-disabled:pointer-events-none',
@@ -72,6 +72,18 @@
 		WithElementRef<HTMLAnchorAttributes> & {
 			variant?: ButtonVariant;
 			size?: ButtonSize;
+			/**
+			 * The press has been acknowledged and the work is under way. The button disables, says
+			 * it is busy to assistive technology, and shows `pendingLabel` if it has one. See the
+			 * motion standard in `$lib/components/motion`.
+			 */
+			pending?: boolean;
+			/**
+			 * What the button says while pending: "Recording…", "Saving…". Both labels occupy the
+			 * same grid cell, so the button keeps the width of the longer one and nothing beside it
+			 * moves when the label changes.
+			 */
+			pendingLabel?: string;
 		};
 </script>
 
@@ -84,10 +96,32 @@
 		href = undefined,
 		type = 'button',
 		disabled,
+		pending = false,
+		pendingLabel,
 		children,
 		...restProps
 	}: ButtonProps = $props();
 </script>
+
+{#snippet label()}
+	{#if pendingLabel}
+		<span class="grid">
+			<span
+				class={cn(
+					'col-start-1 row-start-1 inline-flex items-center justify-center gap-2',
+					pending && 'invisible'
+				)}
+			>
+				{@render children?.()}
+			</span>
+			<span class={cn('col-start-1 row-start-1', !pending && 'invisible')} aria-hidden={!pending}>
+				{pendingLabel}
+			</span>
+		</span>
+	{:else}
+		{@render children?.()}
+	{/if}
+{/snippet}
 
 {#if href}
 	<a
@@ -108,9 +142,10 @@
 		data-slot="button"
 		class={cn(buttonVariants({ variant, size }), className)}
 		{type}
-		{disabled}
+		disabled={disabled || pending}
+		aria-busy={pending || undefined}
 		{...restProps}
 	>
-		{@render children?.()}
+		{@render label()}
 	</button>
 {/if}

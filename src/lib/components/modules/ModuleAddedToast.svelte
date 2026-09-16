@@ -15,6 +15,7 @@
 	 */
 	import CheckIcon from '@lucide/svelte/icons/circle-check';
 	import { enhance } from '$app/forms';
+	import { acknowledged } from '$lib/components/motion';
 
 	let {
 		label,
@@ -52,11 +53,10 @@
 		<form
 			method="POST"
 			{action}
-			use:enhance={() =>
-				async ({ update }) => {
-					await update();
-					onclose();
-				}}
+			use:enhance={acknowledged(() => async ({ update }) => {
+				await update();
+				onclose();
+			})}
 		>
 			<input type="hidden" name="subscriptionId" value={subscriptionId} />
 			<!--

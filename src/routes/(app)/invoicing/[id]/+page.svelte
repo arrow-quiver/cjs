@@ -8,6 +8,7 @@
 	 * day after it is issued, and a link opened on a laptop has to open on a phone.
 	 */
 	import { enhance } from '$app/forms';
+	import { acknowledged } from '$lib/components/motion';
 	import {
 		CancelInvoiceDialog,
 		InvoiceEditor,
@@ -124,13 +125,13 @@
 			method="POST"
 			action="?/issue"
 			class="hidden"
-			use:enhance={() => {
+			use:enhance={acknowledged(() => {
 				issuing = true;
 				return async ({ update }) => {
 					await update();
 					issuing = false;
 				};
-			}}
+			})}
 		></form>
 		<form bind:this={discardForm} method="POST" action="?/discard" class="hidden"></form>
 
@@ -159,13 +160,13 @@
 		method="POST"
 		action="?/{simpleAction}"
 		class="hidden"
-		use:enhance={() => {
+		use:enhance={acknowledged(() => {
 			busy = true;
 			return async ({ update }) => {
 				await update();
 				busy = false;
 			};
-		}}
+		})}
 	>
 		<input type="hidden" name="paymentId" value={reversePaymentId} />
 	</form>

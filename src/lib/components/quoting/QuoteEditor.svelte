@@ -24,6 +24,7 @@
 	 * emailed with an unsaved line would be a document the business never finished.
 	 */
 	import { onMount } from 'svelte';
+	import { tracked } from '$lib/components/motion';
 	import {
 		blankLine,
 		blockersToSending,
@@ -184,11 +185,14 @@
 	async function promote(fields: readonly string[]) {
 		askOpen = false;
 		await autosave.flush();
-		await fetch(promoteEndpoint, {
-			method: 'POST',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify({ fields })
-		});
+		// The ask closes on the press; the activity bar says the save is still on its way.
+		await tracked(
+			fetch(promoteEndpoint, {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ fields })
+			})
+		);
 	}
 
 	function dismissAsk() {
