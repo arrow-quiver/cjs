@@ -37,7 +37,9 @@ const gitignorePath = path.resolve(import.meta.dirname, '.gitignore');
  * (`zones/float-money`), which also says why.
  *
  * `no-restricted-imports` does not see `await import(...)`, so the zones that guard a
- * dangerous handle carry a `-dynamic` twin with the same `ignores`.
+ * dangerous handle carry a `-dynamic` twin with the same `ignores`, matching both a string
+ * and a template literal. Patterns match the path however it is spelled: `$lib/...`, a
+ * relative `../db/client` from inside `server/core`, and with or without an extension.
  */
 const coreRule = (name) => {
 	const rule = builtinRules.get(name);
@@ -62,20 +64,29 @@ export const ZONE_RULES = {
 	'money-ctor-dynamic': restrictedSyntax,
 	'float-money': restrictedSyntax,
 	'payment-sdk': restrictedImports,
+	'payment-sdk-dynamic': restrictedSyntax,
 	'system-principal': restrictedImports,
 	'system-principal-dynamic': restrictedSyntax,
 	fixtures: restrictedImports,
 	'fixtures-dynamic': restrictedSyntax,
 	'no-timers': restrictedSyntax,
-	'validation-barrel': restrictedImports
+	'validation-barrel': restrictedImports,
+	'test-modules': restrictedImports
 };
 
 const zonesPlugin = { meta: { name: 'zones' }, rules: ZONE_RULES };
 
-/** A `-dynamic` twin: the same boundary, for `import()` of a path matching `pattern`. */
+/**
+ * A `-dynamic` twin: the same boundary, for `import()` of a path matching `pattern`, written
+ * as a string or as a template literal (`import(\`...\`)` has no `.value` to match).
+ */
 const dynamicImport = (pattern, message) => [
 	'error',
-	{ selector: `ImportExpression[source.value=${pattern}]`, message }
+	{ selector: `ImportExpression[source.value=${pattern}]`, message },
+	{
+		selector: `ImportExpression > TemplateLiteral > TemplateElement[value.cooked=${pattern}]`,
+		message
+	}
 ];
 
 export const architectureZones = [
@@ -109,7 +120,7 @@ export const architectureZones = [
 				{
 					patterns: [
 						{
-							group: ['**/core/db/client', '$lib/server/core/db/client'],
+							group: ['**/db/client', '**/db/client.*'],
 							message:
 								'Never import unsafeDb. Take a Ctx from withModule(event, key, intent) — the only route to the database, and what applies tenancy, entitlement and audit.'
 						}
@@ -117,7 +128,7 @@ export const architectureZones = [
 				}
 			],
 			'zones/db-client-dynamic': dynamicImport(
-				'/(^|\\/)core\\/db\\/client$/',
+				'/(^|\\/)db\\/client(\\.[a-z]+)?$/',
 				'Never import unsafeDb, dynamically or otherwise. Take a Ctx from withModule(event, key, intent).'
 			)
 		}
@@ -208,7 +219,7 @@ export const architectureZones = [
 				{
 					patterns: [
 						{
-							group: ['$lib/core/money/ctor', '**/core/money/ctor'],
+							group: ['**/money/ctor', '**/money/ctor.*'],
 							message:
 								'Money is constructed by db/map.ts (from rows) or parseMoneyInput (from user input). There is no third way in.'
 						}
@@ -216,7 +227,7 @@ export const architectureZones = [
 				}
 			],
 			'zones/money-ctor-dynamic': dynamicImport(
-				'/(^|\\/)core\\/money\\/ctor$/',
+				'/(^|\\/)money\\/ctor(\\.[a-z]+)?$/',
 				'Money is constructed by db/map.ts or parseMoneyInput. A dynamic import is not a third way in.'
 			)
 		}
@@ -265,7 +276,11 @@ export const architectureZones = [
 						{ name: '@paystack/inline-js', message: 'Provider SDKs live inside their adapter.' }
 					]
 				}
-			]
+			],
+			'zones/payment-sdk-dynamic': dynamicImport(
+				'/^(stripe|paystack-sdk|@paystack\\/inline-js)(\\/.*)?$/',
+				'Provider SDKs live inside their adapter, however they are imported.'
+			)
 		}
 	},
 
@@ -289,7 +304,9 @@ export const architectureZones = [
 				{
 					patterns: [
 						{
-							group: ['$lib/server/core/system', '**/core/system'],
+							// Any module named `system`, however it is reached. There is one, and a second
+							// thing called that would deserve a different name anyway.
+							group: ['**/system', '**/system.*'],
 							message:
 								'withSystem() runs without a user and without entitlement checks. It belongs to background jobs only — add the file to the allowlist in eslint.config.js if it genuinely is one.'
 						}
@@ -297,7 +314,7 @@ export const architectureZones = [
 				}
 			],
 			'zones/system-principal-dynamic': dynamicImport(
-				'/(^|\\/)core\\/system$/',
+				'/(^|\\/)system(\\.[a-z]+)?$/',
 				'withSystem() belongs to background jobs only, however it is imported.'
 			)
 		}
@@ -316,7 +333,7 @@ export const architectureZones = [
 				{
 					patterns: [
 						{
-							group: ['$lib/server/core/db/fixtures', '**/core/db/fixtures', './fixtures'],
+							group: ['**/db/fixtures', '**/db/fixtures.*', './fixtures', './fixtures.*'],
 							message:
 								'db/fixtures is test-only: it connects as the DDL role and deletes rows. Application code goes through withBusiness()/withModule().'
 						}
@@ -324,7 +341,7 @@ export const architectureZones = [
 				}
 			],
 			'zones/fixtures-dynamic': dynamicImport(
-				'/(^|\\/)(core\\/db\\/)?fixtures$/',
+				'/((^|\\/)db\\/|^\\.\\/)fixtures(\\.[a-z]+)?$/',
 				'db/fixtures is test-only, however it is imported.'
 			)
 		}
@@ -364,6 +381,29 @@ export const architectureZones = [
 							group: ['$lib/core/validation/*', '**/core/validation/*'],
 							message:
 								'Import from $lib/core/validation. The barrel carries the message standard; reaching past it is how a boundary quietly grows a second front door.'
+						}
+					]
+				}
+			]
+		}
+	},
+
+	// 12. Application code never imports a test module. Tests are exempt from zones 1, 5, 8 and
+	//     9 because they have to reach the dangerous handles, so a file named `*.test.ts` that
+	//     re-exported one would hand it to the app with no rule in the way.
+	{
+		name: 'zones/test-modules',
+		files: ['src/**/*.{ts,js,svelte}'],
+		ignores: ['src/**/*.test.ts', 'src/**/*.spec.ts'],
+		rules: {
+			'zones/test-modules': [
+				'error',
+				{
+					patterns: [
+						{
+							group: ['**/*.test', '**/*.test.*', '**/*.spec', '**/*.spec.*'],
+							message:
+								'Application code does not import test modules. Tests may reach the unscoped database and the fixtures; nothing they export belongs in the app.'
 						}
 					]
 				}

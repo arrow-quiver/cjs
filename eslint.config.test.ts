@@ -21,7 +21,10 @@ type Row = {
 	readonly code: string;
 	/** A path inside the zone, where the snippet must be reported. */
 	readonly fires: string;
-	/** A path the zone exempts on purpose, where the same snippet must pass. */
+	/**
+	 * A path where the same snippet must pass: one the zone exempts on purpose, or, for a zone
+	 * with no exemptions, one outside its `files`.
+	 */
 	readonly exempt: string;
 };
 
@@ -32,6 +35,26 @@ const ROWS: readonly Row[] = [
 	{
 		zone: 'db-client',
 		code: "import { unsafeDb } from '$lib/server/core/db/client';\nexport { unsafeDb };",
+		fires: ROUTE,
+		exempt: 'src/lib/server/core/ctx.ts'
+	},
+	// The bypasses a review found: a relative path from inside server/core, an extension, and
+	// a template literal. Each used to pass silently.
+	{
+		zone: 'db-client',
+		code: "import { unsafeDb } from '../db/client';\nexport { unsafeDb };",
+		fires: 'src/lib/server/core/jobs/queries.ts',
+		exempt: 'src/lib/server/core/share.ts'
+	},
+	{
+		zone: 'db-client',
+		code: "import { unsafeDb } from '$lib/server/core/db/client.js';\nexport { unsafeDb };",
+		fires: ROUTE,
+		exempt: 'src/hooks.server.ts'
+	},
+	{
+		zone: 'db-client-dynamic',
+		code: 'export const load = async () => (await import(`$lib/server/core/db/client`)).unsafeDb;',
 		fires: ROUTE,
 		exempt: 'src/lib/server/core/ctx.ts'
 	},
@@ -84,10 +107,22 @@ const ROWS: readonly Row[] = [
 		exempt: 'src/lib/server/core/billing/adapters/stripe.ts'
 	},
 	{
+		zone: 'payment-sdk-dynamic',
+		code: "export const sdk = async () => (await import('stripe')).default;",
+		fires: 'src/lib/server/core/billing/charge.ts',
+		exempt: 'src/lib/server/core/billing/adapters/stripe.ts'
+	},
+	{
 		zone: 'system-principal',
 		code: "import { withSystem } from '$lib/server/core/system';\nexport { withSystem };",
 		fires: ROUTE,
 		exempt: 'src/lib/server/core/sweeper.ts'
+	},
+	{
+		zone: 'system-principal',
+		code: "import { withSystem } from '../system';\nexport { withSystem };",
+		fires: 'src/lib/server/core/jobs/queries.ts',
+		exempt: 'src/lib/server/core/billing/reconciler.ts'
 	},
 	{
 		zone: 'system-principal-dynamic',
@@ -108,10 +143,29 @@ const ROWS: readonly Row[] = [
 		exempt: 'src/lib/server/modules/quoting/sharing.test.ts'
 	},
 	{
+		zone: 'fixtures',
+		code: "import { createUser } from '../db/fixtures';\nexport { createUser };",
+		fires: 'src/lib/server/core/jobs/queries.ts',
+		exempt: 'src/lib/server/core/jobs/jobs.test.ts'
+	},
+	{
+		// A story's own fixtures are not the database's. The twin once matched any `fixtures`.
+		zone: 'fixtures-dynamic',
+		code: 'export const seed = async () => (await import(`$lib/server/core/db/fixtures`)).createUser;',
+		fires: 'src/lib/server/core/billing/reconciler.ts',
+		exempt: 'src/lib/server/core/billing/reconciler.test.ts'
+	},
+	{
 		zone: 'no-timers',
 		code: 'export const tick = () => setInterval(() => undefined, 1_000);',
 		fires: 'src/lib/server/core/billing/undo.ts',
 		exempt: 'src/lib/server/core/ratelimit.ts'
+	},
+	{
+		zone: 'test-modules',
+		code: "import { unsafeDb } from './helpers.test';\nexport { unsafeDb };",
+		fires: MODULE,
+		exempt: 'src/lib/server/modules/quoting/quoting.test.ts'
 	},
 	{
 		zone: 'validation-barrel',
@@ -190,6 +244,12 @@ describe('the zones compose instead of replacing each other', { timeout: 60_000 
 
 		expect(await zonesAt(code, MODULE)).toEqual([]);
 		expect(await zonesAt(code, 'src/lib/server/core/home/registry.ts')).toEqual([]);
+	});
+
+	it("leaves a story's own fixtures alone", async () => {
+		const code = "export const load = async () => (await import('./home/fixtures')).default;";
+
+		expect(await zonesAt(code, 'src/stories/home/load.ts')).toEqual([]);
 	});
 
 	it('holds server core to the module boundary', async () => {
