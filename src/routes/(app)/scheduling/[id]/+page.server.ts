@@ -21,11 +21,13 @@ export const load: PageServerLoad = async (event) =>
 		const found = await loadPipelineJob(ctx.tx, event.params.id);
 		if (!found) error(404, notFound('job'));
 
+		// Null only when the job cannot be found, and it was found a moment ago in this transaction.
 		const commercial = await jobCommercialState(ctx.tx, ctx.access, found.id);
+		if (!commercial) error(404, notFound('job'));
 
 		return {
 			job: found,
-			commercial: commercial ? commercialSentence(commercial) : 'Not tracked here',
+			commercial: commercialSentence(commercial),
 			readOnly: ctx.access.scheduling !== 'write'
 		};
 	});

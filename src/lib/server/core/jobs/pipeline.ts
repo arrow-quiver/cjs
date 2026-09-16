@@ -52,23 +52,26 @@ export async function pageJobs(
 	options: { filter: JobFilter; page: number; pageSize?: number }
 ): Promise<JobPage> {
 	const pageSize = options.pageSize ?? JOBS_PAGE_SIZE;
-	const page = Math.max(1, options.page);
 	const where = whereFor(options.filter);
 
-	const [rows, [{ total }]] = await Promise.all([
-		tx
-			.select(columns)
-			.from(job)
-			.innerJoin(
-				customer,
-				and(eq(customer.businessId, job.businessId), eq(customer.id, job.customerId))
-			)
-			.where(where)
-			.orderBy(desc(job.createdAt), desc(job.numberValue))
-			.limit(pageSize)
-			.offset((page - 1) * pageSize),
-		tx.select({ total: count() }).from(job).where(where)
-	]);
+	// Counted first, so a page past the end is read as the last page rather than as an OFFSET the
+	// database has to walk for nothing.
+	const [{ total }] = await tx.select({ total: count() }).from(job).where(where);
+	// eslint-disable-next-line zones/float-money -- pages, not money
+	const lastPage = Math.max(1, Math.ceil(total / pageSize));
+	const page = Math.min(Math.max(1, options.page), lastPage);
+
+	const rows = await tx
+		.select(columns)
+		.from(job)
+		.innerJoin(
+			customer,
+			and(eq(customer.businessId, job.businessId), eq(customer.id, job.customerId))
+		)
+		.where(where)
+		.orderBy(desc(job.createdAt), desc(job.numberValue))
+		.limit(pageSize)
+		.offset((page - 1) * pageSize);
 
 	return {
 		items: rows.map((row) => ({ ...row, status: row.status as JobStatus })),
@@ -115,7 +118,7 @@ export async function unscheduledJobs(
 	tx: Tx
 ): Promise<{ readonly count: number; readonly oldest: Date | null }> {
 	const [row] = await tx
-		.select({ count: count(), oldest: sql<Date | null>`min(${job.createdAt})` })
+		.select({ count: count(), oldest: sql<string | null>`min(${job.createdAt})` })
 		.from(job)
 		.where(and(isNull(job.archivedAt), eq(job.status, 'unscheduled')));
 	return { count: row?.count ?? 0, oldest: row?.oldest ? new Date(row.oldest) : null };

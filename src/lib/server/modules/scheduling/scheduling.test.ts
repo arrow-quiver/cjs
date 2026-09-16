@@ -28,6 +28,7 @@ import { ClientNotFound } from '$lib/server/core/customers';
 import { countJobs, jobCommercialState, loadPipelineJob, pageJobs } from '$lib/server/core/jobs';
 import { JobNotFound, setJobStatus, startJob } from './effects';
 import { summariseScheduling } from './summary';
+import { parseNewJob, parseStatus } from './wire';
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 300_000 });
 
@@ -190,6 +191,14 @@ describe('the list', () => {
 		expect(second.items).toHaveLength(1);
 		expect(new Set([...first.items, ...second.items].map((j) => j.id)).size).toBe(3);
 	});
+
+	it('reads a page past the end as the last page', async () => {
+		const beyond = await as(fresh, (tx) =>
+			pageJobs(tx, { filter: 'open', page: 999_999, pageSize: 2 })
+		);
+		expect(beyond.page).toBe(2);
+		expect(beyond.items).toHaveLength(1);
+	});
 });
 
 describe('what jobs tell Home', () => {
@@ -219,6 +228,9 @@ describe('what jobs tell Home', () => {
 
 		expect(summary.standing?.standing).toBe('attention');
 		expect(summary.standing?.statement).toBe('A job is not scheduled');
+		expect(summary.standing?.explanation).toMatch(
+			/^The oldest has been waiting since \d{1,2} \w+\.$/
+		);
 		expect(summary.resume.map((card) => card.href)).toEqual([`/scheduling/${underWay.id}`]);
 	});
 
@@ -231,5 +243,35 @@ describe('what jobs tell Home', () => {
 		const summary = await summaryFor(business);
 		expect(summary.standing?.standing).toBe('clear');
 		expect(summary.standing?.statement).toBe('Every open job is scheduled');
+	});
+});
+
+describe('what the forms send', () => {
+	const form = (entries: Record<string, string>) => {
+		const data = new FormData();
+		for (const [key, value] of Object.entries(entries)) data.set(key, value);
+		return data;
+	};
+
+	it('takes a client and the work, and treats blanks as absent', () => {
+		const parsed = parseNewJob(
+			form({ customerId: randomUUID(), service: '  Geyser  ', area: '', description: '' })
+		);
+		expect(parsed.ok).toBe(true);
+		if (!parsed.ok) return;
+		expect(parsed.value).toMatchObject({ service: 'Geyser', area: null, description: null });
+	});
+
+	it('asks for a client when none was chosen', () => {
+		const parsed = parseNewJob(form({ customerId: '', service: 'Geyser' }));
+		expect(parsed.ok).toBe(false);
+		if (parsed.ok) return;
+		expect(parsed.errors.customerId).toBe('Choose the client this work is for');
+	});
+
+	it('accepts only the six statuses', () => {
+		expect(parseStatus(form({ status: 'on_hold' }))).toBe('on_hold');
+		expect(parseStatus(form({ status: 'paid' }))).toBeNull();
+		expect(parseStatus(new FormData())).toBeNull();
 	});
 });

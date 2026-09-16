@@ -70,9 +70,7 @@
 				Only you close a job. Paying or invoicing it never does.
 			</p>
 			<div class="mt-4">
-				{#key job.status}
-					<StatusControl status={job.status} />
-				{/key}
+				<StatusControl status={job.status} />
 			</div>
 		</section>
 	{/if}

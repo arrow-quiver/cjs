@@ -26,28 +26,51 @@
 	let {
 		open = $bindable(false),
 		customers,
-		errors = {},
-		message = null,
 		createCustomer
 	}: {
 		open?: boolean;
 		customers: readonly CustomerChoice[];
-		/** Per-field refusals from the action, when the last attempt was refused. */
-		errors?: Readonly<Record<string, string>>;
-		message?: string | null;
 		/** For a story or a test; the picker's own request otherwise. */
 		createCustomer?: CreateCustomer;
 	} = $props();
 
 	let customerId = $state<string | null>(null);
 
-	const starting = submission(() => async ({ update }) => {
-		// The action redirects to the new job; only a refusal comes back here.
+	/**
+	 * THE REFUSAL BELONGS TO THIS ATTEMPT, NOT THE PAGE.
+	 *
+	 * Held here from the submission's own result rather than read from the page's `form`, which
+	 * SvelteKit keeps until the next submission. Read from there, a refusal would still be showing
+	 * after Cancel, the next time somebody opened a blank dialog. Closing clears it.
+	 */
+	let errors = $state<Readonly<Record<string, string>>>({});
+	let message = $state<string | null>(null);
+
+	function clear() {
+		errors = {};
+		message = null;
+	}
+
+	const starting = submission(() => async ({ result, update }) => {
+		if (result.type === 'failure') {
+			// Stay open with everything still typed, and say what to fix. The page is not updated,
+			// so nothing behind the dialog changes for a refusal.
+			errors = (result.data?.errors as Record<string, string> | undefined) ?? {};
+			message = (result.data?.message as string | null | undefined) ?? null;
+			return;
+		}
+		clear();
+		// A success redirects to the new job.
 		await update({ reset: false });
 	});
 </script>
 
-<Dialog bind:open>
+<Dialog
+	bind:open
+	onOpenChange={(next) => {
+		if (!next) clear();
+	}}
+>
 	<DialogContent class="sm:max-w-lg">
 		<form method="POST" action="?/create" use:enhance={starting.enhance}>
 			<DialogHeader>
@@ -87,7 +110,16 @@
 			</div>
 
 			<DialogFooter class="mt-5">
-				<Button variant="secondary" type="button" onclick={() => (open = false)}>Cancel</Button>
+				<Button
+					variant="secondary"
+					type="button"
+					onclick={() => {
+						open = false;
+						clear();
+					}}
+				>
+					Cancel
+				</Button>
 				<Button type="submit" pending={starting.pending} pendingLabel="Starting…"
 					>Start the job</Button
 				>

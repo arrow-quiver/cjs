@@ -10,16 +10,12 @@
 	import { LockedModule, RemovedModule } from '$lib/components/modules';
 	import { SvelteURLSearchParams } from 'svelte/reactivity';
 	import type { JobFilter } from '$lib/core/jobs';
-	import type { ActionData, PageData } from './$types';
+	import type { PageData } from './$types';
 
-	let { data, form }: { data: PageData; form: ActionData } = $props();
+	let { data }: { data: PageData } = $props();
 
+	/** The dialog keeps its own refusals; see `CreateJobDialog`. */
 	let creating = $state(false);
-
-	/** Reopen on a refusal, so the reason sits beside what was typed. */
-	$effect(() => {
-		if (form && (form.message || Object.keys(form.errors ?? {}).length > 0)) creating = true;
-	});
 
 	function hrefFor(filter: JobFilter): string {
 		return filter === 'open' ? '?' : `?filter=${filter}`;
@@ -66,11 +62,6 @@
 	/>
 
 	{#if data.access === 'write'}
-		<CreateJobDialog
-			bind:open={creating}
-			customers={data.customers}
-			errors={form?.errors ?? {}}
-			message={form?.message ?? null}
-		/>
+		<CreateJobDialog bind:open={creating} customers={data.customers} />
 	{/if}
 {/if}
