@@ -53,7 +53,7 @@ export default defineConfig({
 					name: 'pure',
 					environment: 'node',
 					include: [...PURE_TESTS, 'eslint.config.test.ts'],
-					exclude: ['src/**/*.stories.*', 'src/**/*.mobile.spec.ts']
+					exclude: ['src/**/*.stories.*', 'src/**/*.mobile.spec.ts', 'src/**/*.cls.spec.ts']
 				}
 			},
 			// Node tests against the database: tenancy, entitlement, audit, registry invariants.
@@ -63,7 +63,12 @@ export default defineConfig({
 					name: 'unit',
 					environment: 'node',
 					include: ['src/**/*.{test,spec}.{js,ts}', 'src/**/*.svelte.{test,spec}.{js,ts}'],
-					exclude: ['src/**/*.stories.*', 'src/**/*.mobile.spec.ts', ...PURE_TESTS],
+					exclude: [
+						'src/**/*.stories.*',
+						'src/**/*.mobile.spec.ts',
+						'src/**/*.cls.spec.ts',
+						...PURE_TESTS
+					],
 					// A large part of this project asserts Row Level Security, and every one of
 					// those assertions is worth nothing if the connection can bypass a policy.
 					// The setup file proves it cannot, once per worker, before any suite runs —
@@ -103,6 +108,26 @@ export default defineConfig({
 					}
 				}
 			},
+			// Layout shift: skeletons against the screens they stand in for, at the design's two
+			// frames. Two projects rather than two instances, so each reports under its own name.
+			...(
+				[
+					['cls-phone', { width: 390, height: 844 }],
+					['cls-desktop', { width: 1280, height: 800 }]
+				] as const
+			).map(([name, viewport]) => ({
+				extends: true as const,
+				test: {
+					name,
+					include: ['src/**/*.cls.spec.ts'],
+					browser: {
+						enabled: true,
+						headless: true,
+						provider: playwright({}),
+						instances: [{ browser: 'chromium' as const, viewport }]
+					}
+				}
+			})),
 			// Component-level phone assertions (44px targets, no horizontal overflow).
 			// Full check-and-act FLOWS live in e2e/ under real Playwright — Vitest browser
 			// mode is a component runner and cannot navigate server routes or kill a tab.

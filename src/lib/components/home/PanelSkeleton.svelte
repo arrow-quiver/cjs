@@ -12,16 +12,21 @@
 	 * here", and on the screen an owner opens first the second is the one that lowers the
 	 * pulse rather than raising it.
 	 *
-	 * Each shape below occupies approximately the height of the panel it stands in for, so the
-	 * layout does not jump as the panels land — the standing panel keeps its 32px padding and
-	 * its rule, the money row keeps its three columns, the side panels keep their rows. T25
-	 * measures that as cumulative layout shift; this is where it is earned.
+	 * Each shape below is the height of the panel it stands in for, line box for line box, so the
+	 * layout does not jump as the panels land. `skeletons.cls.spec.ts` streams Home's panels in at
+	 * both of the design's frames and fails if anything already on screen moves.
 	 */
 	import { Skeleton } from '$lib/ui';
+	import SkeletonLine from '$lib/components/skeletons/SkeletonLine.svelte';
 
 	let { shape }: { shape: PanelShape } = $props();
 </script>
 
+<!--
+	Every line below uses the real panel's typography through `SkeletonLine`, so each is exactly as
+	tall as the text that replaces it. Where copy usually wraps (the standing explanation, a point's
+	explanation), the skeleton draws the two lines it usually takes.
+-->
 {#if shape === 'standing'}
 	<div
 		data-slot="panel-skeleton"
@@ -29,27 +34,38 @@
 	>
 		<div class="flex flex-col gap-3">
 			<Skeleton bar={false} tone="raised" class="size-[30px] rounded-full" />
-			<Skeleton tone="raised" class="h-5 w-56 rounded-md" />
-			<Skeleton class="w-[420px] max-w-full" />
+			<SkeletonLine class="text-section" bar="h-4 w-56 max-w-full rounded-md" tone="raised" />
+			<!-- Two lines on a phone, where the explanation wraps; one beside it on a wide screen. -->
+			<div class="max-w-[520px]">
+				<SkeletonLine class="text-ui leading-[1.55]" bar="w-full" />
+				<SkeletonLine class="text-ui leading-[1.55] lg:hidden" bar="w-2/3" />
+			</div>
 		</div>
-		<div
-			class="grid gap-x-8 gap-y-5 border-t border-line-subtle pt-7 sm:grid-cols-2 lg:grid-cols-3"
-		>
-			{#each [0, 1, 2] as row (row)}
-				<div class="flex flex-col gap-2">
-					<Skeleton tone="raised" class="w-40" />
-					<Skeleton class="w-32" />
-				</div>
-			{/each}
+		<div class="border-t border-line-subtle pt-7">
+			<div class="grid gap-x-8 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
+				<!--
+					A point's explanation is a sentence. In a third of a wide panel it wraps; across a
+					phone most fit on one line, so only the first is drawn wrapping there.
+				-->
+				{#each [0, 1, 2] as point (point)}
+					<div class="flex flex-col gap-1">
+						<SkeletonLine class="text-ui" bar="w-40 max-w-full" tone="raised" />
+						<div>
+							<SkeletonLine class="text-helper" bar="w-full" />
+							<SkeletonLine class="text-helper {point === 0 ? '' : 'hidden lg:flex'}" bar="w-1/2" />
+						</div>
+					</div>
+				{/each}
+			</div>
 		</div>
 	</div>
 {:else if shape === 'figures'}
 	<div data-slot="panel-skeleton" class="grid gap-3.5 sm:grid-cols-3">
 		{#each [0, 1, 2] as card (card)}
 			<div class="flex flex-col gap-2 rounded-[10px] bg-surface-card p-[18px]">
-				<Skeleton class="w-28" />
-				<Skeleton bar={false} tone="raised" class="h-6 w-32 rounded-md" />
-				<Skeleton class="w-36" />
+				<SkeletonLine class="text-[13px]" bar="w-28" />
+				<SkeletonLine class="text-[24px]" bar="h-5 w-32 rounded-md" tone="raised" />
+				<SkeletonLine class="text-helper" bar="w-36 max-w-full" />
 			</div>
 		{/each}
 	</div>
@@ -61,23 +77,28 @@
 		been taken away.
 	-->
 	<div data-slot="panel-skeleton" class="flex flex-col gap-3.5">
-		<Skeleton class="w-44" />
+		<SkeletonLine class="eyebrow" bar="w-44" />
 		<div class="flex items-center gap-3.5 rounded-[10px] bg-surface-card px-4 py-3.5">
 			<Skeleton bar={false} tone="raised" class="size-[17px] rounded-md" />
-			<div class="flex flex-1 flex-col gap-2">
-				<Skeleton tone="raised" class="w-48" />
-				<Skeleton class="w-64 max-w-full" />
+			<div class="min-w-0 flex-1">
+				<SkeletonLine class="text-ui" bar="w-48 max-w-full" tone="raised" />
+				<SkeletonLine class="text-helper" bar="w-64 max-w-full" />
 			</div>
 		</div>
 	</div>
 {:else}
 	<div data-slot="panel-skeleton" class="flex flex-col gap-2.5">
-		<Skeleton class="w-24" />
+		<SkeletonLine class="eyebrow" bar="w-24" />
 		<div class="rounded-[10px] bg-surface-card px-4 py-1.5">
-			{#each [0, 1, 2] as row (row)}
+			{#each [true, true, false] as detail, row (row)}
 				<div class="flex gap-3 border-b border-line-subtle py-3 last:border-b-0">
-					<Skeleton class="w-[46px] shrink-0" />
-					<Skeleton tone="raised" class="w-32" />
+					<SkeletonLine class="min-w-[46px] shrink-0 text-helper" bar="w-[46px]" />
+					<div class="min-w-0 flex-1">
+						<SkeletonLine class="text-[13px]" bar="w-32" tone="raised" />
+						{#if detail}
+							<SkeletonLine class="mt-0.5 text-helper" bar="w-40 max-w-full" />
+						{/if}
+					</div>
 				</div>
 			{/each}
 		</div>

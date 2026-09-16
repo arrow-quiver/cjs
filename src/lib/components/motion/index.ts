@@ -35,4 +35,11 @@
  *    animations become instant. Skeletons stay, because they are content, not motion.
  */
 export { default as ActivityBar } from './ActivityBar.svelte';
-export { acknowledged, activity, submission, tracked, type Submission } from './acknowledge.svelte';
+export {
+	acknowledged,
+	activity,
+	motionMs,
+	submission,
+	tracked,
+	type Submission
+} from './acknowledge.svelte';

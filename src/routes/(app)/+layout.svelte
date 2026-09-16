@@ -18,7 +18,8 @@
 	 */
 	import { navigating, page } from '$app/state';
 	import { brandAttrs } from '$lib/ui';
-	import { ActivityBar, activity } from '$lib/components/motion';
+	import { ActivityBar, activity, motionMs } from '$lib/components/motion';
+	import { RouteSkeleton, skeletonFor } from '$lib/components/skeletons';
 	import AppSidebar from '$lib/components/shell/AppSidebar.svelte';
 	import AppTopBar from '$lib/components/shell/AppTopBar.svelte';
 	import CommandBar from '$lib/components/shell/CommandBar.svelte';
@@ -41,6 +42,38 @@
 
 	/** A page on its way, or a form waiting on the server. Drawn as the activity bar. */
 	const busy = $derived(navigating.to !== null || activity.busy);
+
+	/**
+	 * THE SKELETON FOR THE NEXT SCREEN, AND WHEN TO SHOW IT.
+	 *
+	 * Only for a different ROUTE: a filter tab, a sort or a page of the same list stays on its route,
+	 * is acknowledged by the tab and the bar, and would only flash if the list blanked on every tap.
+	 *
+	 * Only after `--motion-base`. Most navigations here are preloaded and land sooner than that, and a
+	 * skeleton that appears for a frame and vanishes is the flicker this exists to prevent. The bar
+	 * has already acknowledged the tap, so waiting costs nothing.
+	 *
+	 * The skeleton is drawn OVER the leaving page, not in place of it. The page stays mounted, laid
+	 * out and focused underneath. Hiding it instead would blur whatever field has focus, 200ms in,
+	 * whether or not the navigation ever lands, and a focus-out handler (the quote editor asks
+	 * whether to save client changes back to the record) would fire for a page nobody left. An
+	 * abandoned navigation simply lifts the skeleton off the page exactly as it was.
+	 */
+	const destination = $derived(navigating.to?.route.id ?? null);
+	const changingScreen = $derived(
+		destination !== null && destination !== page.route.id && skeletonFor(destination) !== null
+	);
+	let skeleton = $state<string | null>(null);
+
+	$effect(() => {
+		if (!changingScreen || destination === null) {
+			skeleton = null;
+			return;
+		}
+		const next = destination;
+		const timer = setTimeout(() => (skeleton = next), motionMs('--motion-base'));
+		return () => clearTimeout(timer);
+	});
 	const phoneNav = $derived(mobileNav(data.access));
 
 	/**
@@ -111,10 +144,26 @@
 
 		<ActivityBar {busy} />
 
-		<!-- The only thing that scrolls. -->
-		<main class="min-h-0 flex-1 overflow-y-auto" aria-busy={busy}>
-			{@render children()}
-		</main>
+		<div class="relative min-h-0 flex-1">
+			<!-- The only thing that scrolls. -->
+			<main class="h-full overflow-y-auto" aria-busy={busy}>
+				{@render children()}
+			</main>
+
+			{#if skeleton}
+				<!-- Covers the content area exactly, and takes the pointer while it does. -->
+				<div class="absolute inset-0 overflow-hidden bg-surface-base">
+					<RouteSkeleton routeId={skeleton} />
+				</div>
+			{/if}
+		</div>
+
+		<!--
+			`aria-busy` alone is not reliably announced, and the skeleton is hidden from assistive
+			technology, so a slow navigation says so here. Always in the DOM: a live region mounted
+			mid-flight does not reliably announce its first message.
+		-->
+		<p class="sr-only" role="status">{skeleton ? 'Loading the next page…' : ''}</p>
 
 		<div class="lg:hidden">
 			<MobileNav nav={phoneNav} {pathname} />
