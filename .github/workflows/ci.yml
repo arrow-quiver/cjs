@@ -7,7 +7,8 @@
 #
 # `browser-suites` is the accessibility gate: every story file, in light AND dark, with axe at
 # error severity (.storybook/preview.ts). `test:mobile` holds the 44px touch floors and the
-# no-sideways-scroll assertions at 390px. Both mount components in a headless Chromium.
+# no-sideways-scroll assertions at 390px. `test:cls` holds the skeletons to the screens they
+# stand in for, at phone and desktop widths. All three mount components in a headless Chromium.
 #
 # The `unit` suite is excluded on purpose: it needs a Neon DATABASE_URL under a non-BYPASSRLS
 # role (scripts/vitest-setup.ts hard-refuses anything else), and wiring that secret is its
@@ -46,3 +47,4 @@ jobs:
       - run: bunx playwright install --with-deps chromium
       - run: bun run test:stories
       - run: bun run test:mobile
+      - run: bun run test:cls

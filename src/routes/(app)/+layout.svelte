@@ -18,7 +18,8 @@
 	 */
 	import { navigating, page } from '$app/state';
 	import { brandAttrs } from '$lib/ui';
-	import { ActivityBar, activity } from '$lib/components/motion';
+	import { ActivityBar, activity, motionMs } from '$lib/components/motion';
+	import { RouteSkeleton, skeletonFor } from '$lib/components/skeletons';
 	import AppSidebar from '$lib/components/shell/AppSidebar.svelte';
 	import AppTopBar from '$lib/components/shell/AppTopBar.svelte';
 	import CommandBar from '$lib/components/shell/CommandBar.svelte';
@@ -41,6 +42,35 @@
 
 	/** A page on its way, or a form waiting on the server. Drawn as the activity bar. */
 	const busy = $derived(navigating.to !== null || activity.busy);
+
+	/**
+	 * THE SKELETON FOR THE NEXT SCREEN, AND WHEN TO SHOW IT.
+	 *
+	 * Only for a different ROUTE: a filter tab, a sort or a page of the same list stays on its route,
+	 * is acknowledged by the tab and the bar, and would only flash if the list blanked on every tap.
+	 *
+	 * Only after `--motion-base`. Most navigations here are preloaded and land sooner than that, and a
+	 * skeleton that appears for a frame and vanishes is the flicker this exists to prevent. The bar
+	 * has already acknowledged the tap, so waiting costs nothing.
+	 *
+	 * The leaving page stays MOUNTED, only hidden, while the skeleton shows. A navigation that is
+	 * abandoned hands back the page exactly as it was, unsaved edits in an editor included.
+	 */
+	const destination = $derived(navigating.to?.route.id ?? null);
+	const changingScreen = $derived(
+		destination !== null && destination !== page.route.id && skeletonFor(destination) !== null
+	);
+	let skeleton = $state<string | null>(null);
+
+	$effect(() => {
+		if (!changingScreen || destination === null) {
+			skeleton = null;
+			return;
+		}
+		const next = destination;
+		const timer = setTimeout(() => (skeleton = next), motionMs('--motion-base'));
+		return () => clearTimeout(timer);
+	});
 	const phoneNav = $derived(mobileNav(data.access));
 
 	/**
@@ -113,7 +143,12 @@
 
 		<!-- The only thing that scrolls. -->
 		<main class="min-h-0 flex-1 overflow-y-auto" aria-busy={busy}>
-			{@render children()}
+			{#if skeleton}
+				<RouteSkeleton routeId={skeleton} />
+			{/if}
+			<div class={skeleton ? 'hidden' : 'contents'}>
+				{@render children()}
+			</div>
 		</main>
 
 		<div class="lg:hidden">

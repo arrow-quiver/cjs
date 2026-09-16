@@ -103,6 +103,17 @@ export async function tracked<T>(work: Promise<T>): Promise<T> {
 	}
 }
 
+/**
+ * A motion token in milliseconds, read from the stylesheet so a script waiting on "one base
+ * duration" waits on the same value the CSS animates at, not a second copy of it. Browser only.
+ */
+export function motionMs(token: '--motion-fast' | '--motion-base'): number {
+	const value = getComputedStyle(document.documentElement).getPropertyValue(token).trim();
+	const amount = Number.parseFloat(value);
+	if (Number.isNaN(amount)) return 0;
+	return value.endsWith('ms') ? amount : amount * 1000;
+}
+
 /** A form whose own button acknowledges it. */
 export type Submission<Success extends Payload, Failure extends Payload> = {
 	/** True from the press until the server has answered and the page has updated. */
