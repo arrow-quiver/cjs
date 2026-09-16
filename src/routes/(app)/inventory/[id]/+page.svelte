@@ -6,6 +6,7 @@
 	 * comment on `+page.server.ts` for why the detail is `write` where the list is `read`.
 	 */
 	import { enhance } from '$app/forms';
+	import { acknowledged } from '$lib/components/motion';
 	import { Refusal } from '$lib/ui';
 	import { ItemDetail, ItemDialog } from '$lib/components/inventory';
 	import { SvelteURLSearchParams } from 'svelte/reactivity';
@@ -57,9 +58,7 @@
 	method="POST"
 	action="?/{stateAction}"
 	class="hidden"
-	use:enhance={() =>
-		async ({ update }) =>
-			await update()}
+	use:enhance={acknowledged()}
 ></form>
 
 <ItemDetail

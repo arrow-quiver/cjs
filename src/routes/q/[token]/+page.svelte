@@ -15,6 +15,7 @@
 	 * as the PDF in their inbox whatever their device thinks about dark mode.
 	 */
 	import { enhance } from '$app/forms';
+	import { acknowledged } from '$lib/components/motion';
 	import { DocumentSheet } from '$lib/components/document';
 	import { Button, Field, Input, Textarea } from '$lib/ui';
 	import type { ActionData, PageData } from './$types';
@@ -81,13 +82,13 @@
 				<form
 					method="POST"
 					action="?/accept"
-					use:enhance={() => {
+					use:enhance={acknowledged(() => {
 						busy = true;
 						return async ({ update }) => {
 							await update();
 							busy = false;
 						};
-					}}
+					})}
 				>
 					<Field
 						label="Your name"
@@ -100,9 +101,7 @@
 						{/snippet}
 					</Field>
 					<div class="mt-3 flex flex-wrap gap-2">
-						<Button type="submit" disabled={busy}>
-							{busy ? 'Sending…' : 'Accept this quote'}
-						</Button>
+						<Button type="submit" pending={busy} pendingLabel="Sending…">Accept this quote</Button>
 						<Button variant="secondary" type="button" onclick={() => (answering = null)}>
 							Back
 						</Button>
@@ -112,13 +111,13 @@
 				<form
 					method="POST"
 					action="?/decline"
-					use:enhance={() => {
+					use:enhance={acknowledged(() => {
 						busy = true;
 						return async ({ update }) => {
 							await update();
 							busy = false;
 						};
-					}}
+					})}
 				>
 					<Field label="Anything you'd like to tell them? (optional)" id="decline-reason">
 						{#snippet control(field)}
@@ -126,7 +125,7 @@
 						{/snippet}
 					</Field>
 					<div class="mt-3 flex flex-wrap gap-2">
-						<Button type="submit" disabled={busy}>{busy ? 'Sending…' : 'Decline'}</Button>
+						<Button type="submit" pending={busy} pendingLabel="Sending…">Decline</Button>
 						<Button variant="secondary" type="button" onclick={() => (answering = null)}>
 							Back
 						</Button>

@@ -256,7 +256,12 @@
 	--radius-card: 12px;
 	--radius-dialog: 14px;
 
-	/* Motion — 150-200ms, ease-out, forward only. */
+	/*
+	 * Motion. The design's rule is two sentences: 150 to 200ms, eased out, forward only; and
+	 * acknowledge every input inside 400ms. These three values are the only place a duration or
+	 * a curve is written down. `@theme` below routes Tailwind's transition and animation
+	 * defaults through them, and `motion-standard.test.ts` fails a component that writes its own.
+	 */
 	--motion-fast: 150ms;
 	--motion-base: 200ms;
 	--motion-ease: cubic-bezier(0.2, 0, 0, 1);
@@ -578,7 +583,28 @@
 	--text-eyebrow--letter-spacing: 0.1em;
 	--text-eyebrow--font-weight: 500;
 
-	--ease-out-forward: cubic-bezier(0.2, 0, 0, 1);
+	/*
+	 * MOTION HAS ONE SPELLING. A bare `transition-*` class runs at `--motion-fast` on
+	 * `--motion-ease`; `duration-base` is the one named alternative, at `--motion-base`. Tailwind's
+	 * stock curves are cleared, so `ease-in-out` and friends generate nothing, and the dialog,
+	 * menu and tooltip animations from tw-animate run on the same two tokens instead of their
+	 * own 150ms `ease`.
+	 */
+	--default-transition-duration: var(--motion-fast);
+	--default-transition-timing-function: var(--motion-ease);
+	--transition-duration-base: var(--motion-base);
+	--ease-*: initial;
+}
+
+@theme inline {
+	--animate-in: enter var(--tw-animation-duration, var(--tw-duration, var(--motion-fast)))
+		var(--tw-ease, var(--motion-ease)) var(--tw-animation-delay, 0s)
+		var(--tw-animation-iteration-count, 1) var(--tw-animation-direction, normal)
+		var(--tw-animation-fill-mode, none);
+	--animate-out: exit var(--tw-animation-duration, var(--tw-duration, var(--motion-fast)))
+		var(--tw-ease, var(--motion-ease)) var(--tw-animation-delay, 0s)
+		var(--tw-animation-iteration-count, 1) var(--tw-animation-direction, normal)
+		var(--tw-animation-fill-mode, none);
 }
 
 /*

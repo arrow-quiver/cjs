@@ -15,6 +15,7 @@
 	 * on something reversible.
 	 */
 	import { enhance } from '$app/forms';
+	import { submission } from '$lib/components/motion';
 	import { Amount, Button, Dialog, DialogContent, DialogTitle, StatDelta } from '$lib/ui';
 	import { accentText } from '$lib/components/shell';
 	import { navIcon } from '$lib/components/shell/icons';
@@ -46,7 +47,10 @@
 	} = $props();
 
 	const Icon = $derived(navIcon(moduleKey));
-	const submitting = $state({ busy: false });
+	const removing = submission(() => async ({ update }) => {
+		await update();
+		open = false;
+	});
 </script>
 
 <Dialog bind:open>
@@ -105,23 +109,11 @@
 		<div class="flex flex-col gap-4 border-t border-line-strong pt-5">
 			<p class="text-helper text-ink-muted">Add it back from the same place you removed it.</p>
 
-			<form
-				method="POST"
-				{action}
-				class="flex justify-end gap-3"
-				use:enhance={() => {
-					submitting.busy = true;
-					return async ({ update }) => {
-						await update();
-						submitting.busy = false;
-						open = false;
-					};
-				}}
-			>
+			<form method="POST" {action} class="flex justify-end gap-3" use:enhance={removing.enhance}>
 				<input type="hidden" name="module" value={moduleKey} />
 				<Button type="button" variant="secondary" onclick={() => (open = false)}>Keep it</Button>
 				<!-- `secondary`, never `destructive`. Nothing here is destroyed. -->
-				<Button type="submit" variant="secondary" disabled={submitting.busy}>
+				<Button type="submit" variant="secondary" pending={removing.pending}>
 					Remove {label}
 				</Button>
 			</form>

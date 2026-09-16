@@ -8,6 +8,7 @@
 	 *   write  owned        — the module.
 	 */
 	import { enhance } from '$app/forms';
+	import { acknowledged } from '$lib/components/motion';
 	import { Refusal } from '$lib/ui';
 	import { InvoiceList } from '$lib/components/invoicing';
 	import { LockedModule, RemovedModule } from '$lib/components/modules';
@@ -122,13 +123,13 @@
 		method="POST"
 		action="?/create"
 		class="hidden"
-		use:enhance={() => {
+		use:enhance={acknowledged(() => {
 			creating = true;
 			return async ({ update }) => {
 				await update();
 				creating = false;
 			};
-		}}
+		})}
 	></form>
 
 	<form
@@ -136,11 +137,7 @@
 		method="POST"
 		action="?/{actionKind}"
 		class="hidden"
-		use:enhance={() => {
-			return async ({ update }) => {
-				await update();
-			};
-		}}
+		use:enhance={acknowledged()}
 	>
 		<input type="hidden" name="id" value={actionId} />
 	</form>

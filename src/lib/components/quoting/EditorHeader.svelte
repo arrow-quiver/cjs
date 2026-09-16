@@ -77,8 +77,8 @@
 			>
 				Preview PDF
 			</Button>
-			<Button onclick={onsend} disabled={!canSend || sending}>
-				{sending ? 'Sending…' : 'Send to client'}
+			<Button onclick={onsend} disabled={!canSend} pending={sending} pendingLabel="Sending…">
+				Send to client
 			</Button>
 		</div>
 	</div>

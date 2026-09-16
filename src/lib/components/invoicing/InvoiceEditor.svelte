@@ -359,14 +359,21 @@
 
 		<!-- ── The two acts ───────────────────────────────────────────────────────────── -->
 		<div class="mt-6 flex flex-wrap items-center gap-3">
-			<Button variant="secondary" disabled={saving} onclick={() => onsave(patchFromEditor(state))}>
-				{saving ? 'Saving…' : 'Save'}
+			<Button
+				variant="secondary"
+				pending={saving}
+				pendingLabel="Saving…"
+				onclick={() => onsave(patchFromEditor(state))}
+			>
+				Save
 			</Button>
 			<Button
-				disabled={saving || issuing || blockers.length > 0}
+				disabled={saving || blockers.length > 0}
+				pending={issuing}
+				pendingLabel="Issuing…"
 				onclick={() => onissue(patchFromEditor(state))}
 			>
-				{issuing ? 'Issuing…' : 'Issue and send'}
+				Issue and send
 			</Button>
 
 			<!--

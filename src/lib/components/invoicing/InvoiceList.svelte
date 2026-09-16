@@ -126,9 +126,9 @@
 </script>
 
 {#snippet newInvoice()}
-	<Button onclick={oncreate} disabled={creating}>
+	<Button onclick={oncreate} pending={creating} pendingLabel="Starting…">
 		<Plus class="size-4" aria-hidden="true" />
-		{creating ? 'Starting…' : 'New invoice'}
+		New invoice
 	</Button>
 {/snippet}
 
@@ -152,9 +152,14 @@
 		</div>
 
 		{#if !readOnly}
-			<Button onclick={oncreate} disabled={creating} class="hidden lg:inline-flex">
+			<Button
+				onclick={oncreate}
+				pending={creating}
+				pendingLabel="Starting…"
+				class="hidden lg:inline-flex"
+			>
 				<Plus class="size-4" aria-hidden="true" />
-				{creating ? 'Starting…' : 'New invoice'}
+				New invoice
 			</Button>
 		{/if}
 
@@ -249,8 +254,8 @@
 			Deliberately absent from the empty-module state, which already carries its own button —
 			the same rule `ItemList` keeps.
 		-->
-		<PrimaryAction class="lg:hidden" onclick={oncreate} disabled={creating}>
-			{creating ? 'Starting…' : 'New invoice'}
+		<PrimaryAction class="lg:hidden" onclick={oncreate} pending={creating} pendingLabel="Starting…">
+			New invoice
 		</PrimaryAction>
 	{/if}
 </div>

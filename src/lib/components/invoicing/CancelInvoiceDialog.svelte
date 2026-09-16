@@ -18,6 +18,7 @@
 	 * this one.
 	 */
 	import { enhance } from '$app/forms';
+	import { submission } from '$lib/components/motion';
 	import {
 		Button,
 		Dialog,
@@ -41,23 +42,15 @@
 	} = $props();
 
 	let reason = $state('');
-	let busy = $state(false);
+	const cancellation = submission(() => async ({ update }) => {
+		await update();
+		open = false;
+	});
 </script>
 
 <Dialog bind:open>
 	<DialogContent class="sm:max-w-md">
-		<form
-			method="POST"
-			action="?/cancel"
-			use:enhance={() => {
-				busy = true;
-				return async ({ update }) => {
-					await update();
-					busy = false;
-					open = false;
-				};
-			}}
-		>
+		<form method="POST" action="?/cancel" use:enhance={cancellation.enhance}>
 			<DialogHeader>
 				<DialogTitle>Cancel {number ?? 'this invoice'}?</DialogTitle>
 				<DialogDescription>
@@ -88,8 +81,13 @@
 				<Button variant="secondary" type="button" onclick={() => (open = false)}>
 					Keep the invoice
 				</Button>
-				<Button variant="destructive" type="submit" disabled={busy}>
-					{busy ? 'Cancelling…' : 'Cancel it'}
+				<Button
+					variant="destructive"
+					type="submit"
+					pending={cancellation.pending}
+					pendingLabel="Cancelling…"
+				>
+					Cancel it
 				</Button>
 			</DialogFooter>
 		</form>

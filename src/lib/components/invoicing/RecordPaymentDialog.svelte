@@ -16,6 +16,7 @@
 	 */
 	import { untrack } from 'svelte';
 	import { enhance } from '$app/forms';
+	import { submission } from '$lib/components/motion';
 	import {
 		Button,
 		Dialog,
@@ -64,7 +65,7 @@
 	let receivedOn = $state(today);
 	let method = $state<PaymentMethod>('eft');
 	let reference = $state('');
-	let busy = $state(false);
+	const payment = submission();
 
 	const LABELS: Readonly<Record<PaymentMethod, string>> = {
 		eft: 'EFT',
@@ -101,17 +102,7 @@
 
 <Dialog bind:open>
 	<DialogContent class="sm:max-w-md">
-		<form
-			method="POST"
-			action="?/recordPayment"
-			use:enhance={() => {
-				busy = true;
-				return async ({ update }) => {
-					await update();
-					busy = false;
-				};
-			}}
-		>
+		<form method="POST" action="?/recordPayment" use:enhance={payment.enhance}>
 			<DialogHeader>
 				<DialogTitle>Record a payment</DialogTitle>
 				<DialogDescription>
@@ -173,9 +164,7 @@
 
 			<DialogFooter class="mt-5">
 				<Button variant="secondary" type="button" onclick={() => (open = false)}>Cancel</Button>
-				<Button type="submit" disabled={busy}>
-					{busy ? 'Recording…' : 'Record it'}
-				</Button>
+				<Button type="submit" pending={payment.pending} pendingLabel="Recording…">Record it</Button>
 			</DialogFooter>
 		</form>
 	</DialogContent>

@@ -16,8 +16,9 @@
 	 * that should move. `svh` rather than `vh` because mobile browsers lie about `vh` while
 	 * their address bar is retracting, which puts the bottom nav under the chrome.
 	 */
-	import { page } from '$app/state';
+	import { navigating, page } from '$app/state';
 	import { brandAttrs } from '$lib/ui';
+	import { ActivityBar, activity } from '$lib/components/motion';
 	import AppSidebar from '$lib/components/shell/AppSidebar.svelte';
 	import AppTopBar from '$lib/components/shell/AppTopBar.svelte';
 	import CommandBar from '$lib/components/shell/CommandBar.svelte';
@@ -30,7 +31,16 @@
 
 	let { data, children }: { data: LayoutServerData; children: Snippet } = $props();
 
-	const pathname = $derived(page.url.pathname);
+	/**
+	 * WHERE THE PERSON IS GOING, NOT ONLY WHERE THEY ARE. The nav highlights the destination the
+	 * moment it is tapped, so the press is acknowledged before the next page has loaded, which on
+	 * a phone on a site is the slow part. If the navigation is abandoned, `navigating.to` clears
+	 * and the highlight returns to the page that is still showing.
+	 */
+	const pathname = $derived(navigating.to?.url.pathname ?? page.url.pathname);
+
+	/** A page on its way, or a form waiting on the server. Drawn as the activity bar. */
+	const busy = $derived(navigating.to !== null || activity.busy);
 	const phoneNav = $derived(mobileNav(data.access));
 
 	/**
@@ -99,8 +109,10 @@
 			/>
 		</div>
 
+		<ActivityBar {busy} />
+
 		<!-- The only thing that scrolls. -->
-		<main class="min-h-0 flex-1 overflow-y-auto">
+		<main class="min-h-0 flex-1 overflow-y-auto" aria-busy={busy}>
 			{@render children()}
 		</main>
 

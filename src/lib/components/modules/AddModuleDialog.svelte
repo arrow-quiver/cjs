@@ -21,6 +21,7 @@
 	 * zone 10 bans a timer near billing; the rest is a matter of not writing it.
 	 */
 	import { enhance } from '$app/forms';
+	import { submission } from '$lib/components/motion';
 	import { Amount, Button, Dialog, DialogContent, DialogTitle, StatDelta } from '$lib/ui';
 	import { accentText } from '$lib/components/shell';
 	import { navIcon } from '$lib/components/shell/icons';
@@ -58,7 +59,10 @@
 	} = $props();
 
 	const Icon = $derived(navIcon(moduleKey));
-	const submitting = $state({ busy: false });
+	const adding = submission(() => async ({ update }) => {
+		await update();
+		open = false;
+	});
 </script>
 
 <Dialog bind:open>
@@ -139,22 +143,10 @@
 		<div class="flex flex-col gap-4 border-t border-line-strong pt-5">
 			<p class="text-helper text-ink-muted">Remove it from the same place you added it.</p>
 
-			<form
-				method="POST"
-				{action}
-				class="flex justify-end gap-3"
-				use:enhance={() => {
-					submitting.busy = true;
-					return async ({ update }) => {
-						await update();
-						submitting.busy = false;
-						open = false;
-					};
-				}}
-			>
+			<form method="POST" {action} class="flex justify-end gap-3" use:enhance={adding.enhance}>
 				<input type="hidden" name="module" value={moduleKey} />
 				<Button type="button" variant="secondary" onclick={() => (open = false)}>Cancel</Button>
-				<Button type="submit" disabled={submitting.busy}>
+				<Button type="submit" pending={adding.pending}>
 					Add {label} · <Amount value={price} decimals={0} class="text-ui" />/mo
 				</Button>
 			</form>
