@@ -3,6 +3,15 @@
 - **Language**: TypeScript
 - **Package Manager**: bun
 - **Add-ons**: prettier, eslint, tailwindcss, drizzle, better-auth, storybook, mcp
+- **Issue tracker**: GitHub issues in `spaceghostu/cjs`, **not Linear**
+
+## Tickets
+
+Tickets are tracked as GitHub issues. Linear is no longer used, so skip any Linear step a skill or workflow asks for (the dh-skills `linear`, `delivery` and `stack-*` flows assume Linear) and do the equivalent with `gh issue`.
+
+- Issue titles keep the `[SPA-N]` key, so PR titles and commit subjects stay `[SPA-N] <type>: description`.
+- Old Linear keys map to issues by a fixed offset: **SPA-N is issue #(N+9)** (SPA-9 is #18). `gh issue list --search '"[SPA-9]" in:title'` finds one by key.
+- Link a PR to its issue by number in the PR body (`#18`, or `Closes #18` to close it on merge), not by Linear URL.
 
 ---
 

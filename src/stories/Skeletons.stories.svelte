@@ -74,6 +74,18 @@
 	</div>
 </Story>
 
+<Story name="Jobs" asChild>
+	<div class="h-svh overflow-y-auto bg-surface-base">
+		<RouteSkeleton routeId="/(app)/scheduling" />
+	</div>
+</Story>
+
+<Story name="Job" asChild>
+	<div class="h-svh overflow-y-auto bg-surface-base">
+		<RouteSkeleton routeId="/(app)/scheduling/[id]" />
+	</div>
+</Story>
+
 <Story name="Settings" asChild>
 	<div class="h-svh overflow-y-auto bg-surface-base">
 		<RouteSkeleton routeId="/(app)/settings" />

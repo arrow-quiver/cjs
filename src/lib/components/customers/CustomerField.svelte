@@ -69,7 +69,10 @@
 					if (chosen) onchoose(chosen);
 				}}
 			>
-				<SelectTrigger {...field} class="min-w-0 flex-1">
+				<SelectTrigger
+					{...field}
+					class="min-w-0 flex-1 data-[size=default]:h-11 lg:data-[size=default]:h-[38px]"
+				>
 					{selectedName || (choices.length === 0 ? 'No clients yet' : 'Choose a client')}
 				</SelectTrigger>
 				<SelectContent>

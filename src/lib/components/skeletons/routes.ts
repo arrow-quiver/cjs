@@ -17,6 +17,8 @@ import InvoiceDocumentSkeleton from './InvoiceDocumentSkeleton.svelte';
 import InvoiceListSkeleton from './InvoiceListSkeleton.svelte';
 import ItemDetailSkeleton from './ItemDetailSkeleton.svelte';
 import ItemListSkeleton from './ItemListSkeleton.svelte';
+import JobDetailSkeleton from './JobDetailSkeleton.svelte';
+import JobListSkeleton from './JobListSkeleton.svelte';
 import ModuleCardSkeleton from './ModuleCardSkeleton.svelte';
 import QuoteEditorSkeleton from './QuoteEditorSkeleton.svelte';
 import QuoteListSkeleton from './QuoteListSkeleton.svelte';
@@ -34,6 +36,8 @@ export const ROUTE_SKELETONS = {
 	'/(app)/inventory': ItemListSkeleton,
 	'/(app)/inventory/[id]': ItemDetailSkeleton,
 	'/(app)/inventory/counts/[id]': CountSheetSkeleton,
+	'/(app)/scheduling': JobListSkeleton,
+	'/(app)/scheduling/[id]': JobDetailSkeleton,
 	'/(app)/settings': SettingsSkeleton,
 	'/(app)/settings/modules': SettingsSkeleton
 } satisfies Partial<Record<RouteId, Component>>;
