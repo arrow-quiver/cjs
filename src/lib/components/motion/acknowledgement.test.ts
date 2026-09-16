@@ -71,6 +71,15 @@ describe('acknowledged()', () => {
 		expect(activity.busy).toBe(false);
 	});
 
+	it('settles when the request is aborted, which SvelteKit never calls back for', async () => {
+		const request = input();
+		await acknowledged()(request);
+		expect(activity.busy).toBe(true);
+
+		request.controller.abort();
+		expect(activity.busy).toBe(false);
+	});
+
 	it('settles when the screen’s submit function throws', async () => {
 		await expect(
 			acknowledged(() => {

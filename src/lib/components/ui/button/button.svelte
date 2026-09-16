@@ -73,9 +73,14 @@
 			variant?: ButtonVariant;
 			size?: ButtonSize;
 			/**
-			 * The press has been acknowledged and the work is under way. The button disables, says
-			 * it is busy to assistive technology, and shows `pendingLabel` if it has one. See the
-			 * motion standard in `$lib/components/motion`.
+			 * The press has been acknowledged and the work is under way. The button refuses further
+			 * presses, says it is busy to assistive technology, and shows `pendingLabel` if it has
+			 * one. Buttons only: a link that navigates is acknowledged by the shell. See the motion
+			 * standard in `$lib/components/motion`.
+			 *
+			 * It is `aria-disabled`, not `disabled`. Disabling the button that has focus throws focus
+			 * back to the page, and a keyboard user who just pressed Enter would have to find their
+			 * place again. So it stays focusable and a guard swallows the press instead.
 			 */
 			pending?: boolean;
 			/**
@@ -98,9 +103,20 @@
 		disabled,
 		pending = false,
 		pendingLabel,
+		onclick,
 		children,
 		...restProps
 	}: ButtonProps = $props();
+
+	/** A press while pending does nothing: no second submit, no second call. */
+	function press(event: MouseEvent & { currentTarget: EventTarget & HTMLButtonElement }) {
+		if (pending) {
+			event.preventDefault();
+			event.stopImmediatePropagation();
+			return;
+		}
+		onclick?.(event);
+	}
 </script>
 
 {#snippet label()}
@@ -132,6 +148,7 @@
 		aria-disabled={disabled}
 		role={disabled ? 'link' : undefined}
 		tabindex={disabled ? -1 : undefined}
+		{onclick}
 		{...restProps}
 	>
 		{@render children?.()}
@@ -142,8 +159,10 @@
 		data-slot="button"
 		class={cn(buttonVariants({ variant, size }), className)}
 		{type}
-		disabled={disabled || pending}
+		{disabled}
+		aria-disabled={pending || undefined}
 		aria-busy={pending || undefined}
+		onclick={press}
 		{...restProps}
 	>
 		{@render label()}

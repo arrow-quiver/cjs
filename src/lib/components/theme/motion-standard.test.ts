@@ -121,12 +121,40 @@ const ALLOWED: readonly Allowance[] = [
 	}
 ];
 
-/** Blank comments to spaces, keeping every newline so line numbers still point at the source. */
+/**
+ * Blank comments to spaces, keeping every newline so line numbers still point at the source.
+ *
+ * A `//` only starts a comment outside a string. Blanking from any `//` to the end of the line
+ * would let a URL in copy (`"see https://…"`) hide a class written after it on the same line.
+ */
 function blankComments(text: string, file: string): string {
 	const blank = (match: string) => match.replace(/[^\n]/g, ' ');
-	let out = text.replace(/\/\*[\s\S]*?\*\//g, blank).replace(/(^|\s)\/\/[^\n]*/g, blank);
+	let out = text.replace(/\/\*[\s\S]*?\*\//g, blank);
 	if (file.endsWith('.svelte')) out = out.replace(/<!--[\s\S]*?-->/g, blank);
-	return out;
+	return out
+		.split('\n')
+		.map((line) => {
+			const at = lineCommentStart(line);
+			return at === -1 ? line : line.slice(0, at) + ' '.repeat(line.length - at);
+		})
+		.join('\n');
+}
+
+/** Where a `//` comment starts on this line, ignoring any `//` inside quotes; -1 if none. */
+function lineCommentStart(line: string): number {
+	let quote: string | null = null;
+	for (let i = 0; i < line.length; i++) {
+		const char = line[i];
+		if (quote) {
+			if (char === '\\') i++;
+			else if (char === quote) quote = null;
+		} else if (char === "'" || char === '"' || char === '`') {
+			quote = char;
+		} else if (char === '/' && line[i + 1] === '/' && (i === 0 || /\s/.test(line[i - 1]))) {
+			return i;
+		}
+	}
+	return -1;
 }
 
 type Violation = {
@@ -180,7 +208,13 @@ describe('the scanner', () => {
 		['literal-timing', 'x.svelte', '<div style="transition: opacity 300ms">'],
 		['literal-timing', 'x.css', '.x { transition-timing-function: ease; }'],
 		['cubic-bezier', 'x.css', '.x { --curve: cubic-bezier(0.3, 1.4, 0.6, 1); }'],
-		['spinner', 'x.svelte', "import Loader2Icon from '@lucide/svelte/icons/loader-2';"]
+		['spinner', 'x.svelte', "import Loader2Icon from '@lucide/svelte/icons/loader-2';"],
+		[
+			'literal-duration',
+			'x.svelte',
+			'<p>See https://example.com <span class="duration-300">x</span></p>'
+		],
+		['literal-duration', 'x.ts', "const copy = 'read this // then'; const cls = 'duration-300';"]
 	])('catches %s in %s', (rule, file, text) => {
 		expect(scan(file, text).map((v) => v.rule)).toContain(rule);
 	});
@@ -193,7 +227,8 @@ describe('the scanner', () => {
 		['x.svelte', '<div style="transition: width var(--motion-base) var(--motion-ease)">'],
 		['x.ts', 'const settlementDuration = daysBetween(a, b); // a duration-150 in a comment'],
 		['x.ts', 'reversePayment(tx, id); // reverse is a business word'],
-		['x.svelte', '<!-- `animate-pulse` loops, which is why it is gone -->']
+		['x.svelte', '<!-- `animate-pulse` loops, which is why it is gone -->'],
+		['x.ts', "const note = 'a // is not a comment in a string'; // but duration-300 in one is"]
 	])('passes %s: %s', (file, text) => {
 		expect(scan(file, text)).toEqual([]);
 	});

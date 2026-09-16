@@ -29,6 +29,11 @@
 	 * the link still navigates, the URL is still the truth, and `aria-current` keeps naming the
 	 * page actually showing. The request remembers which tab was active when it was made, so the
 	 * moment a new `active` arrives it stops applying.
+	 *
+	 * It cannot outlive a navigation that fails. SvelteKit either lands the page, renders the error
+	 * page in its place, or falls back to a full page load, and each of those replaces this
+	 * component or its `active`. A navigation superseded by a tap on another tab replaces the
+	 * request with the newer one.
 	 */
 	let requested = $state<{ filter: InventoryFilter; from: InventoryFilter } | null>(null);
 	const shown = $derived(requested && requested.from === active ? requested.filter : active);

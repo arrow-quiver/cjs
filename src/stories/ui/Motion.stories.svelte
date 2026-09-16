@@ -32,14 +32,19 @@
 
 		await waitFor(() => expect(button).toHaveAttribute('aria-busy', 'true'), { timeout: 400 });
 		expect(performance.now() - pressed, 'acknowledged inside 400ms').toBeLessThan(400);
-		expect(button).toBeDisabled();
+		expect(button).toHaveAttribute('aria-disabled', 'true');
+		expect(document.activeElement, 'focus stayed on the button that was pressed').toBe(button);
+
+		// A second press from the keyboard, where a pointer cannot reach it, does nothing.
+		await userEvent.keyboard('{Enter}');
+		expect(canvas.getByTestId('presses')).toHaveTextContent('Pressed 1');
 		expect(button, 'the label says what is happening').toHaveAccessibleName('Recording…');
 		expect(button.getBoundingClientRect().width, 'the button kept its width').toBe(before);
 	}}
 >
 	<Specimen
 		title="Pending"
-		note="Press it. The button disables, says it is busy, and swaps its label for one that says what is happening. Both labels share one grid cell, so the button keeps the width of the longer."
+		note="Press it. The button refuses further presses, says it is busy, and swaps its label for one that says what is happening. It keeps focus, and both labels share one grid cell, so it keeps the width of the longer."
 	>
 		<PendingButton />
 	</Specimen>

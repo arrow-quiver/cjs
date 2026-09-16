@@ -66,6 +66,11 @@ export function acknowledged<
 			input.cancel();
 		};
 
+		// The same is true of an aborted request: SvelteKit swallows the AbortError and returns
+		// without calling back. Without this, one abort would pin the activity bar for the rest
+		// of the session.
+		input.controller.signal.addEventListener('abort', settle, { once: true });
+
 		let after: Awaited<ReturnType<SubmitFunction<Success, Failure>>>;
 		try {
 			after = await submit?.({ ...input, cancel });
