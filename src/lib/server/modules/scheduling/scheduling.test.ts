@@ -26,9 +26,11 @@ import { toBusiness } from '$lib/server/core/db/map';
 import type { Tx } from '$lib/server/core/db/tx';
 import { ClientNotFound } from '$lib/server/core/customers';
 import { countJobs, jobCommercialState, loadPipelineJob, pageJobs } from '$lib/server/core/jobs';
-import { JobNotFound, setJobStatus, startJob } from './effects';
+import { createEmployee, createTeam, setMembership } from '$lib/server/core/people';
+import { JobNotFound, scheduleJob, setJobStatus, startJob, unscheduleEntry } from './effects';
+import { jobSlots, weekEntries } from './queries';
 import { summariseScheduling } from './summary';
-import { parseNewJob, parseStatus } from './wire';
+import { parseNewJob, parseScheduleEntry, parseStatus } from './wire';
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 300_000 });
 
@@ -161,6 +163,143 @@ describe('money never moves a job', () => {
 	});
 });
 
+describe('putting work on the plan', () => {
+	const book = (
+		jobId: string,
+		assignee: { kind: 'employee' | 'team'; id: string },
+		day: string,
+		startMinute: number,
+		endMinute: number
+	) =>
+		as(mine, (tx) =>
+			scheduleJob(tx, mine.id, mine.ownerUserId, jobId, {
+				assignee,
+				day,
+				startMinute,
+				endMinute
+			})
+		);
+
+	it('books a person, moves the job to scheduled, and tells them', async () => {
+		const started = await start('Geyser replacement');
+		const { id: thabo } = await as(mine, (tx) => createEmployee(tx, mine.id, 'Thabo Nkosi'));
+
+		await book(started.id, { kind: 'employee', id: thabo }, '2026-10-05', 480, 600);
+
+		const after = await as(mine, (tx) => loadPipelineJob(tx, started.id));
+		expect(after?.status).toBe('scheduled');
+
+		const slots = await as(mine, (tx) => jobSlots(tx, started.id));
+		expect(slots).toHaveLength(1);
+		expect(slots[0]).toMatchObject({
+			day: '2026-10-05',
+			startMinute: 480,
+			endMinute: 600,
+			assignee: { kind: 'employee', id: thabo, name: 'Thabo Nkosi' }
+		});
+
+		// The person was told, durably and in words that carry the detail.
+		const [note] = await as(mine, (tx) =>
+			tx
+				.execute<{ title: string; detail: string; href: string }>(
+					sql`select title, detail, href from core_notification where employee_id = ${thabo}`
+				)
+				.then((r) => r.rows)
+		);
+		expect(note.title).toBe('You are on Geyser replacement for Fynbos Interiors');
+		expect(note.detail).toContain('Monday, 5 October');
+		expect(note.detail).toContain('08:00 to 10:00');
+		expect(note.href).toBe(`/scheduling/${started.id}`);
+	});
+
+	it('refuses to put one person in two places, with the sentence', async () => {
+		const first = await start('Morning callout');
+		const second = await start('Second callout');
+		const { id: anele } = await as(mine, (tx) => createEmployee(tx, mine.id, 'Anele Mthembu'));
+
+		await book(first.id, { kind: 'employee', id: anele }, '2026-10-06', 480, 600);
+
+		const message = await messageFromRejection(
+			book(second.id, { kind: 'employee', id: anele }, '2026-10-06', 540, 660)
+		);
+		expect(message).toBe(
+			'Anele Mthembu is already on Morning callout that day (Tuesday, 6 October, 08:00 to 10:00). Pick a different time, or different hands.'
+		);
+
+		// Back to back is a morning's work, not a clash.
+		await book(second.id, { kind: 'employee', id: anele }, '2026-10-06', 600, 720);
+	});
+
+	it('sees through a team in both directions', async () => {
+		const solo = await start('Solo visit');
+		const crewJob = await start('Crew job');
+		const { id: zoleka } = await as(mine, (tx) => createEmployee(tx, mine.id, 'Zoleka Dube'));
+		const { id: crew } = await as(mine, (tx) => createTeam(tx, mine.id, 'Install crew'));
+		await as(mine, (tx) => setMembership(tx, mine.id, zoleka, crew, true));
+
+		// Booked by name first; the team cannot then take the same morning.
+		await book(solo.id, { kind: 'employee', id: zoleka }, '2026-10-07', 480, 600);
+		const throughTeam = await messageFromRejection(
+			book(crewJob.id, { kind: 'team', id: crew }, '2026-10-07', 540, 660)
+		);
+		expect(throughTeam).toContain('Zoleka Dube is already on Solo visit');
+
+		// And booked with the team first, the person cannot be taken solo.
+		await book(crewJob.id, { kind: 'team', id: crew }, '2026-10-07', 720, 840);
+		const throughPerson = await messageFromRejection(
+			book(solo.id, { kind: 'employee', id: zoleka }, '2026-10-07', 780, 900)
+		);
+		expect(throughPerson).toContain('Zoleka Dube is already on Crew job');
+
+		// The team booking notified its member.
+		const notes = await as(mine, (tx) =>
+			tx
+				.execute<{ title: string }>(
+					sql`select title from core_notification where employee_id = ${zoleka} order by created_at`
+				)
+				.then((r) => r.rows)
+		);
+		expect(notes.some((n) => n.title.includes('Crew job'))).toBe(true);
+	});
+
+	it('unschedules a slot without touching the status', async () => {
+		const started = await start('Removable work');
+		const { id: person } = await as(mine, (tx) => createEmployee(tx, mine.id, 'Sipho Zulu'));
+		await book(started.id, { kind: 'employee', id: person }, '2026-10-08', 480, 540);
+
+		const [slot] = await as(mine, (tx) => jobSlots(tx, started.id));
+		await as(mine, (tx) => unscheduleEntry(tx, slot.id));
+
+		expect(await as(mine, (tx) => jobSlots(tx, started.id))).toHaveLength(0);
+		const after = await as(mine, (tx) => loadPipelineJob(tx, started.id));
+		expect(after?.status).toBe('scheduled');
+	});
+
+	it('keeps the week board inside the business', async () => {
+		const week = await as(theirs, (tx) => weekEntries(tx, '2026-10-05'));
+		expect(week).toHaveLength(0);
+	});
+
+	it("refuses another business's hands, and cannot touch another business's slot", async () => {
+		const started = await start('Fence repair');
+		const { id: outsider } = await as(theirs, (tx) => createEmployee(tx, theirs.id, 'Bob Bayside'));
+
+		const hands = await messageFromRejection(
+			book(started.id, { kind: 'employee', id: outsider }, '2026-10-09', 480, 600)
+		);
+		expect(hands).toBe(
+			'That person is not on your list. Pick somebody from it, or add them first.'
+		);
+
+		const { id: person } = await as(mine, (tx) => createEmployee(tx, mine.id, 'Lindiwe Cele'));
+		await book(started.id, { kind: 'employee', id: person }, '2026-10-09', 480, 600);
+		const [slot] = await as(mine, (tx) => jobSlots(tx, started.id));
+
+		const removal = await messageFromRejection(as(theirs, (tx) => unscheduleEntry(tx, slot.id)));
+		expect(removal).toBe("We couldn't find that slot.");
+	});
+});
+
 describe('the list', () => {
 	let fresh: TestBusiness;
 	let client: string;
@@ -266,12 +405,53 @@ describe('what the forms send', () => {
 		const parsed = parseNewJob(form({ customerId: '', service: 'Geyser' }));
 		expect(parsed.ok).toBe(false);
 		if (parsed.ok) return;
-		expect(parsed.errors.customerId).toBe('Choose the client this work is for');
+		expect(parsed.errors.customerId).toBe('Choose the client this work is for.');
 	});
 
 	it('accepts only the six statuses', () => {
 		expect(parseStatus(form({ status: 'on_hold' }))).toBe('on_hold');
 		expect(parseStatus(form({ status: 'paid' }))).toBeNull();
 		expect(parseStatus(new FormData())).toBeNull();
+	});
+
+	it('reads a booking: whose, which day, and the stretch of clock', () => {
+		const id = randomUUID();
+		const parsed = parseScheduleEntry(
+			form({ assignee: `team:${id}`, day: '2026-10-05', start: '08:00', end: '10:30' })
+		);
+		expect(parsed.ok).toBe(true);
+		if (!parsed.ok) return;
+		expect(parsed.value).toEqual({
+			assignee: { kind: 'team', id },
+			day: '2026-10-05',
+			startMinute: 480,
+			endMinute: 630
+		});
+	});
+
+	it('refuses a booking that is missing its parts, a sentence each', () => {
+		const parsed = parseScheduleEntry(
+			form({ assignee: 'nobody', day: 'Tuesday', start: 'early', end: '07:00' })
+		);
+		expect(parsed.ok).toBe(false);
+		if (parsed.ok) return;
+		expect(parsed.errors.assignee).toBe('Choose who this work is for: a person, or a team');
+		expect(parsed.errors.day).toBe('Pick the day this work happens');
+		expect(parsed.errors.start).toBe('Give a start time, like 08:00');
+		expect(parsed.errors.end).toBeUndefined();
+
+		const backwards = parseScheduleEntry(
+			form({
+				assignee: `employee:${randomUUID()}`,
+				day: '2026-10-05',
+				start: '10:00',
+				end: '09:00'
+			})
+		);
+		expect(backwards.ok).toBe(false);
+		if (backwards.ok) return;
+		expect(backwards.errors.end).toBe(
+			'The end has to come after the start. Swap them, or pick a later end'
+		);
 	});
 });

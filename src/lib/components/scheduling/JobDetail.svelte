@@ -10,16 +10,24 @@
 	import { resolve } from '$app/paths';
 	import { Badge } from '$lib/ui';
 	import { jobTitle, statusLabel, statusTone, type JobRow } from '$lib/core/jobs';
+	import type { EmployeeRow, ScheduleEntry, TeamRow } from '$lib/core/schedule';
+	import ScheduleControl from './ScheduleControl.svelte';
 	import StatusControl from './StatusControl.svelte';
 
 	let {
 		job,
 		commercial,
+		slots,
+		employees,
+		teams,
 		readOnly = false
 	}: {
 		job: JobRow;
 		/** `commercialSentence(jobCommercialState(...))`, already worded. */
 		commercial: string;
+		slots: readonly ScheduleEntry[];
+		employees: readonly EmployeeRow[];
+		teams: readonly TeamRow[];
 		readOnly?: boolean;
 	} = $props();
 </script>
@@ -62,6 +70,19 @@
 			</div>
 		{/if}
 	</dl>
+
+	{#if !readOnly || slots.length > 0}
+		<section class="mt-8" aria-labelledby="job-plan-heading">
+			<h2 id="job-plan-heading" class="text-[16px] font-medium text-ink">On the plan</h2>
+			<p class="mt-1 text-helper text-ink-muted">
+				A day, a stretch of the clock, and a person or a team. Assignment happens here and nowhere
+				else, and everybody involved is told.
+			</p>
+			<div class="mt-4">
+				<ScheduleControl {slots} {employees} {teams} {readOnly} />
+			</div>
+		</section>
+	{/if}
 
 	{#if !readOnly}
 		<section class="mt-8" aria-labelledby="job-move-heading">

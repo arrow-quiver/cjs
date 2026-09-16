@@ -10,7 +10,9 @@
 	 * The search field is 44px here against 34px on desktop. That is not a bigger version of
 	 * the same control: on desktop it is a hint, and on a phone it is a touch target.
 	 */
+	import Bell from '@lucide/svelte/icons/bell';
 	import Search from '@lucide/svelte/icons/search';
+	import { resolve } from '$app/paths';
 	import * as Avatar from '$lib/components/ui/avatar/index.js';
 
 	let {
@@ -19,6 +21,7 @@
 		userInitials,
 		userName,
 		aiEnabled,
+		unread = 0,
 		onSearch
 	}: {
 		tradingName: string;
@@ -26,6 +29,7 @@
 		userInitials: string;
 		userName: string;
 		aiEnabled: boolean;
+		unread?: number;
 		onSearch: () => void;
 	} = $props();
 </script>
@@ -39,6 +43,21 @@
 			{initials}
 		</span>
 		<span class="min-w-0 flex-1 truncate text-[15px] font-medium text-ink">{tradingName}</span>
+		<a
+			href={resolve('/notifications')}
+			aria-label={unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'}
+			class="relative flex size-11 shrink-0 items-center justify-center rounded-lg text-ink-secondary outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-focus-ring focus-visible:outline-solid"
+		>
+			<Bell size={19} aria-hidden="true" />
+			{#if unread > 0}
+				<span
+					aria-hidden="true"
+					class="absolute top-1.5 right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-wrong-ink px-1 numeric text-[10px] leading-none font-medium text-surface-base"
+				>
+					{unread > 99 ? '99+' : unread}
+				</span>
+			{/if}
+		</a>
 		<Avatar.Root class="size-[30px]">
 			<Avatar.Fallback class="text-[11px]">
 				<span class="sr-only">{userName}</span>

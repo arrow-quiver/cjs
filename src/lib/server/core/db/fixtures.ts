@@ -248,6 +248,14 @@ export async function cleanupFixtures(): Promise<void> {
 					'quoting_quote_line',
 					'quoting_quote',
 					'quoting_setting',
+					// The schedule unwinds before the job, the employee and the team it names,
+					// notifications before the employee they reach, and membership before either
+					// side of the pairing.
+					'scheduling_schedule',
+					'core_notification',
+					'core_employee_team',
+					'core_employee',
+					'core_team',
 					// Jobs unwind between the documents that point at them and the customer they
 					// point at: a quote and an invoice each carry a composite foreign key to
 					// `core_job`, and `core_job` carries one to `core_customer`.
