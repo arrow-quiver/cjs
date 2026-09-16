@@ -14,7 +14,9 @@ import { NO_SKELETON, ROUTE_SKELETONS, skeletonFor } from './routes';
 const ROUTES = fileURLToPath(new URL('../../../routes/', import.meta.url));
 const APP = join(ROUTES, '(app)');
 
-const LOAD = /export\s+(?:const|async\s+function|function)\s+load\b/;
+/** A `load` declared here, or re-exported from somewhere else. */
+const LOAD =
+	/export\s+(?:const|let|async\s+function|function)\s+load\b|export\s*\{[^}]*\bload\b[^}]*\}/;
 
 function routesWithLoad(dir: string): string[] {
 	const here = ['+page.server.ts', '+page.ts']
@@ -50,6 +52,14 @@ describe('route skeletons', () => {
 
 	it('never lists a route in both places', () => {
 		expect(Object.keys(NO_SKELETON).filter((id) => id in ROUTE_SKELETONS)).toEqual([]);
+	});
+
+	it('recognises a load however it is exported', () => {
+		expect(LOAD.test('export const load: PageServerLoad = async () => ({});')).toBe(true);
+		expect(LOAD.test('export async function load() {}')).toBe(true);
+		expect(LOAD.test("export { load } from './load';")).toBe(true);
+		expect(LOAD.test('export { actions, load as load };')).toBe(true);
+		expect(LOAD.test('export const actions = {};')).toBe(false);
 	});
 
 	it('answers null for a route it does not know, and for no route at all', () => {

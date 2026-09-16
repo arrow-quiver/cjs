@@ -142,6 +142,58 @@ describe('the invoice list skeleton', () => {
 });
 
 describe('Home, as its panels stream in', () => {
+	/**
+	 * THE LAST PANEL HAS NOTHING BELOW IT TO MOVE, so layout shift cannot see it: an agenda skeleton
+	 * of the wrong height would pass the test after this one. So every panel's skeleton is also held
+	 * to the height of the panel that replaces it, measured in place on the real page.
+	 */
+	it('holds every panel skeleton to the height of the panel that replaces it', async () => {
+		const deferred = <T>() => {
+			let resolve: (value: T) => void = () => {};
+			const promise = new Promise<T>((done) => (resolve = done));
+			return { promise, resolve };
+		};
+		const standing = deferred<typeof STANDING_ATTENTION>();
+		const resume = deferred<typeof RESUME_CARDS>();
+		const figures = deferred<typeof MONTH_CARDS>();
+		const agenda = deferred<typeof AGENDA_ROWS>();
+
+		const page = render(HomePage as unknown as Component<Record<string, unknown>>, {
+			data: {
+				greeting: 'Good morning, Alice',
+				modules: MODULES_PANEL,
+				standing: standing.promise,
+				resume: resume.promise,
+				figures: figures.promise,
+				agenda: agenda.promise
+			}
+		});
+		await settled();
+
+		const heightOf = (selector: string) =>
+			page.querySelector(selector)!.getBoundingClientRect().height;
+		const skeletons = [...page.querySelectorAll('[data-slot="panel-skeleton"]')].map(
+			(element) => element.getBoundingClientRect().height
+		);
+		expect(skeletons, 'one skeleton per streamed panel').toHaveLength(4);
+
+		standing.resolve(STANDING_ATTENTION);
+		resume.resolve(RESUME_CARDS.slice(0, 1));
+		figures.resolve(MONTH_CARDS);
+		agenda.resolve(AGENDA_ROWS.slice(0, 3));
+		await settled();
+
+		const panels = ['standing', 'resume', 'month', 'coming-up'].map((slot) =>
+			heightOf(`[data-slot="${slot}"]`)
+		);
+		panels.forEach((height, index) => {
+			expect(
+				Math.abs(height - skeletons[index]),
+				`panel ${index}: skeleton ${skeletons[index]}px, panel ${height}px`
+			).toBeLessThanOrEqual(1);
+		});
+	});
+
 	it('moves nothing already on screen while each panel lands', async () => {
 		expect(PerformanceObserver.supportedEntryTypes, 'this browser cannot measure CLS').toContain(
 			'layout-shift'

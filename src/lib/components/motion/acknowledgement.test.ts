@@ -16,7 +16,7 @@ import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { ActionResult } from '@sveltejs/kit';
 import { describe, expect, it, vi } from 'vitest';
-import { acknowledged, activity, submission, tracked } from './acknowledge.svelte';
+import { acknowledged, activity, cssTimeMs, submission, tracked } from './acknowledge.svelte';
 
 const SRC = fileURLToPath(new URL('../../../', import.meta.url));
 
@@ -129,6 +129,17 @@ describe('submission()', () => {
 
 		expect(form.pending).toBe(false);
 		expect(activity.busy).toBe(false);
+	});
+});
+
+describe('cssTimeMs()', () => {
+	it('reads milliseconds and seconds', () => {
+		expect(cssTimeMs('--motion-base', '200ms')).toBe(200);
+		expect(cssTimeMs('--motion-base', '0.2s')).toBe(200);
+	});
+
+	it.each([[''], ['200'], ['fast'], ['200 ms']])('refuses "%s" rather than guessing', (value) => {
+		expect(() => cssTimeMs('--motion-base', value)).toThrow('--motion-base');
 	});
 });
 

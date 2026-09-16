@@ -53,8 +53,11 @@
 	 * skeleton that appears for a frame and vanishes is the flicker this exists to prevent. The bar
 	 * has already acknowledged the tap, so waiting costs nothing.
 	 *
-	 * The leaving page stays MOUNTED, only hidden, while the skeleton shows. A navigation that is
-	 * abandoned hands back the page exactly as it was, unsaved edits in an editor included.
+	 * The skeleton is drawn OVER the leaving page, not in place of it. The page stays mounted, laid
+	 * out and focused underneath. Hiding it instead would blur whatever field has focus, 200ms in,
+	 * whether or not the navigation ever lands, and a focus-out handler (the quote editor asks
+	 * whether to save client changes back to the record) would fire for a page nobody left. An
+	 * abandoned navigation simply lifts the skeleton off the page exactly as it was.
 	 */
 	const destination = $derived(navigating.to?.route.id ?? null);
 	const changingScreen = $derived(
@@ -141,15 +144,26 @@
 
 		<ActivityBar {busy} />
 
-		<!-- The only thing that scrolls. -->
-		<main class="min-h-0 flex-1 overflow-y-auto" aria-busy={busy}>
-			{#if skeleton}
-				<RouteSkeleton routeId={skeleton} />
-			{/if}
-			<div class={skeleton ? 'hidden' : 'contents'}>
+		<div class="relative min-h-0 flex-1">
+			<!-- The only thing that scrolls. -->
+			<main class="h-full overflow-y-auto" aria-busy={busy}>
 				{@render children()}
-			</div>
-		</main>
+			</main>
+
+			{#if skeleton}
+				<!-- Covers the content area exactly, and takes the pointer while it does. -->
+				<div class="absolute inset-0 overflow-hidden bg-surface-base">
+					<RouteSkeleton routeId={skeleton} />
+				</div>
+			{/if}
+		</div>
+
+		<!--
+			`aria-busy` alone is not reliably announced, and the skeleton is hidden from assistive
+			technology, so a slow navigation says so here. Always in the DOM: a live region mounted
+			mid-flight does not reliably announce its first message.
+		-->
+		<p class="sr-only" role="status">{skeleton ? 'Loading the next page…' : ''}</p>
 
 		<div class="lg:hidden">
 			<MobileNav nav={phoneNav} {pathname} />
