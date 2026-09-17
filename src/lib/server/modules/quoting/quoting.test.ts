@@ -426,6 +426,49 @@ describe('a customer override', () => {
 		expect(loaded!.customer.email).toBe('ops@bergview.co.za');
 		expect(loaded!.customer.phone).toBe('021 555 0100');
 		expect(loaded!.customer.contactPerson).toBe('Jason Tester');
+		// The send-to defaults follow the snapshot, not the patch that was composed before it.
+		expect(loaded!.sendTo.email).toBe('ops@bergview.co.za');
+		expect(loaded!.sendTo.name).toBe('Jason Tester');
+	});
+
+	/**
+	 * SPA-37. The other side of the same branch: choosing a DIFFERENT client on a quote that
+	 * already had one. The snapshot is retaken — the document is now for somebody else, so the
+	 * previous client's details must not survive the swap, edited or not.
+	 */
+	it('retakes the snapshot when the client is swapped, keeping nothing from the last one', async () => {
+		const business = await asThornhill((tx) => loadBusiness(tx, thornhill.id));
+		const first = await createCustomer(thornhill, 'Kloof Street Developments');
+		const second = await createCustomer(thornhill, 'Hout Bay Marine');
+		await asThornhill((tx) =>
+			tx
+				.update(customerTable)
+				.set({ email: 'admin@houtbaymarine.co.za', contactPerson: 'Pieter Louw' })
+				.where(eq(customerTable.id, second))
+		);
+
+		const id = await asThornhill((tx) => createDraft(tx, business, { customerId: first }));
+		// An edit made against the FIRST client, still on the form when the second is chosen.
+		await asThornhill((tx) =>
+			saveDraft(
+				tx,
+				thornhill.id,
+				id,
+				patch({
+					customerId: second,
+					customer: {
+						...patch().customer,
+						name: 'Kloof Street Developments (Pty) Ltd',
+						email: 'old@kloofstreet.co.za'
+					}
+				})
+			)
+		);
+
+		const loaded = await asThornhill((tx) => loadQuote(tx, id));
+		expect(loaded!.customer.name).toBe('Hout Bay Marine');
+		expect(loaded!.customer.email).toBe('admin@houtbaymarine.co.za');
+		expect(loaded!.customer.contactPerson).toBe('Pieter Louw');
 	});
 
 	/**

@@ -207,7 +207,14 @@
 	async function promote(fields: readonly string[]) {
 		askOpen = false;
 		const answered = differences;
+		// What was typed goes first, and the promote does not go at all if it did not land.
+		// `promoteCustomerFields` copies from the QUOTE ROW, not from this request — that is what
+		// stops a promotion smuggling a value nobody saw. It also means an unsaved edit would
+		// promote the PREVIOUS saved value while this screen went on believing it had saved the
+		// new one. `flush` reports a failure through `status` rather than by throwing, exactly as
+		// `send` reads it below.
 		await autosave.flush();
+		if (autosave.status === 'error') return;
 		// The ask closes on the press; the activity bar says the save is still on its way.
 		const response = await tracked(
 			fetch(promoteEndpoint, {
@@ -216,9 +223,15 @@
 				body: JSON.stringify({ fields })
 			})
 		);
-		// Only a save that landed changes what this screen believes. On a refusal the record is
-		// still what it was, and the ask is allowed to come back rather than be silently lost.
-		if (!response.ok) return;
+		// Only a save that landed changes what this screen believes. A refusal puts the ask back
+		// up rather than leaving it to a later, unrelated edit to resurface: `edited` in
+		// `WhoItsFor` was spent on the leaving that opened this, so nothing else would bring it
+		// back, and silently dropping what somebody pressed "save" on is the outcome this whole
+		// screen is written to avoid.
+		if (!response.ok) {
+			askOpen = true;
+			return;
+		}
 
 		// The record now says what was saved to it, so the same comparison finds those fields
 		// identical and the ask has nothing left to raise about them.
