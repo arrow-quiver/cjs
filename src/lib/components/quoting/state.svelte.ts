@@ -62,6 +62,8 @@ export class Autosave {
 	#inFlight = false;
 	/** The most recent payload. Replaced rather than queued — the last one is the truth. */
 	#latest: DraftPatch | null = null;
+	/** Set by `stop()`. Nothing is scheduled or sent from here on. */
+	#stopped = false;
 
 	constructor(options: AutosaveOptions) {
 		this.#endpoint = options.endpoint;
@@ -71,6 +73,7 @@ export class Autosave {
 
 	/** Something changed. Schedules a save, replacing any that has not gone yet. */
 	change(patch: DraftPatch): void {
+		if (this.#stopped) return;
 		this.#latest = patch;
 		this.status = 'pending';
 		this.error = null;
@@ -87,6 +90,7 @@ export class Autosave {
 	 * document the business never finished.
 	 */
 	async flush(): Promise<void> {
+		if (this.#stopped) return;
 		if (this.#timer !== null) {
 			clearTimeout(this.#timer);
 			this.#timer = null;
@@ -151,6 +155,7 @@ export class Autosave {
 	 * Safari reliably delivers before a tab is discarded. `beforeunload` is not one of them.
 	 */
 	beacon(): void {
+		if (this.#stopped) return;
 		if (this.#latest === null) return;
 		if (typeof navigator === 'undefined' || !navigator.sendBeacon) {
 			void this.flush();
@@ -164,6 +169,25 @@ export class Autosave {
 	/** True when there is work the server has not acknowledged. */
 	get dirty(): boolean {
 		return this.#latest !== null || this.#inFlight;
+	}
+
+	/**
+	 * STOP SENDING, AND STAY STOPPED.
+	 *
+	 * For the one case where this form's copy is about to become stale and must not reach the
+	 * server again: choosing a different client, which re-snapshots the customer server-side and
+	 * reloads the page. Between the flush and the reload the fields still hold the PREVIOUS
+	 * client's details, and a save carrying those would write them over the fresh snapshot.
+	 *
+	 * Stronger than `destroy()`, which only cancels the pending timer and leaves the next
+	 * keystroke free to schedule another. This closes the door: `change`, `flush` and `beacon`
+	 * all become no-ops, so neither a keystroke nor the `pagehide` beacon can get a request out.
+	 * There is nothing to lose by it — what is on screen is about to be replaced by the reload.
+	 */
+	stop(): void {
+		this.#stopped = true;
+		this.#latest = null;
+		this.destroy();
 	}
 
 	destroy(): void {

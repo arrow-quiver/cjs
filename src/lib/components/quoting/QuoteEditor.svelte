@@ -243,10 +243,19 @@
 	 * `tick()` first. The new client id is set synchronously, but the autosave only hears about it
 	 * from the `$effect` above, which runs on the next flush. Flushing before that would find nothing
 	 * pending and reload straight away, leaving the choice to a `pagehide` beacon racing the reload.
+	 *
+	 * Then nothing more is sent from this page. The form is still holding the PREVIOUS client's
+	 * details — the server has just re-snapshotted from the address book and this copy is stale
+	 * until the reload re-seeds it — so a save from here would write those stale fields over the
+	 * snapshot. `saveDraft` refuses them on the save that chose the client; it cannot refuse them
+	 * on a later one, because by then the id it is being sent with is the id the quote already
+	 * has. The reload is the only thing that makes this form current again, so it is the only
+	 * thing that happens next.
 	 */
 	async function changeClient() {
 		await tick();
 		await autosave.flush();
+		autosave.stop();
 		globalThis.location.reload();
 	}
 

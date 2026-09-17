@@ -192,6 +192,36 @@ describe('flushing before something irreversible', () => {
 	});
 });
 
+/**
+ * SPA-37. Choosing a different client re-snapshots the customer SERVER-SIDE and reloads the
+ * page, and between the flush and the reload this form still holds the previous client's
+ * details. A save carrying those would land after the snapshot and overwrite it — which is how
+ * a quote came to say its client had no email and no phone.
+ */
+describe('stopping before a reload', () => {
+	it('sends nothing more, however the page tries', async () => {
+		const save = autosave();
+		save.change(PATCH);
+		await save.flush();
+		expect(bodies).toHaveLength(1);
+
+		save.stop();
+
+		// A keystroke does not schedule one...
+		save.change(patchNamed('Stale Holdings'));
+		await vi.advanceTimersByTimeAsync(1000);
+		// ...an explicit flush does not send one...
+		await save.flush();
+		// ...and neither does the beacon the closing page fires.
+		const sendBeacon = vi.fn(() => true);
+		vi.stubGlobal('navigator', { sendBeacon });
+		save.beacon();
+
+		expect(bodies).toHaveLength(1);
+		expect(sendBeacon).not.toHaveBeenCalled();
+	});
+});
+
 describe('the clock', () => {
 	it('reads 24-hour, zero-padded, like the design', () => {
 		const at = new Date(2026, 7, 4, 21, 47);
