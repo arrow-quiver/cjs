@@ -416,29 +416,44 @@ export function blockersToSending(state: EditorState): readonly string[] {
 }
 
 /**
- * The customer fields that differ from the address book.
+ * The customer fields that differ from the address book, and could be saved back.
  *
  * "Change it here and we'll ask if you want it saved" — this is the ASK. A field is offered
  * for promotion only when it actually differs, so somebody who changed nothing is never
  * interrupted.
+ *
+ * A field the quote has left EMPTY is not a difference here, even when the record has a value.
+ * Clearing a name on one document is a normal draft state and means nothing about the address
+ * book; offering to promote it puts "now empty" in front of somebody with a button that blanks
+ * a record every other document reads from. Emptying a field on the customer list is a real
+ * thing to want, and it belongs on the customer's own screen where it says so.
  */
 export type FieldDifference = {
 	readonly field: string;
 	readonly label: string;
 	readonly was: string | null;
-	readonly now: string | null;
+	/** Never null: a difference is always a value the quote carries and the record could take. */
+	readonly now: string;
 };
 
+/**
+ * THE FIELDS THE ASK IS ABOUT, WHICH IS NOT THE SAME LIST AS `PROMOTABLE_FIELDS`.
+ *
+ * `PROMOTABLE_FIELDS` in `wire.ts` is the SERVER's closed list: the columns the endpoint may
+ * ever write, decided there so a request cannot widen it. This is a narrower thing — the
+ * fields a person can actually TYPE INTO on the quote editor, and therefore the only ones an
+ * ask on that screen can honestly attribute to them.
+ *
+ * The other seven are snapshot columns. `copyCustomerOntoQuote` sets them when the client is
+ * picked and nothing in the editor edits them again, so a difference on one of them cannot be
+ * this person's edit: it means the ADDRESS BOOK changed since the snapshot was taken —
+ * somebody corrected the phone number on the customer's own screen. Offering that back, ticked
+ * by default, would hand them a button that reverts the correction and calls it their edit.
+ * Whoever holds the newer value wins by not being asked about it.
+ */
 const PROMOTABLE_LABELS: readonly (readonly [keyof EditorState & string, string])[] = [
 	['name', 'Client name'],
-	['contactPerson', 'Contact person'],
-	['email', 'Email'],
-	['phone', 'Phone'],
-	['vatNumber', 'VAT number'],
-	['addressLine1', 'Address'],
-	['addressLine2', 'Address line 2'],
-	['city', 'City'],
-	['postalCode', 'Postal code']
+	['contactPerson', 'Contact person']
 ];
 
 export function differencesFromRecord(
@@ -448,6 +463,7 @@ export function differencesFromRecord(
 	return PROMOTABLE_LABELS.flatMap(([field, label]) => {
 		const now = orNull(String(state[field] ?? ''));
 		const was = record[field] ?? null;
-		return now === was ? [] : [{ field, label, was, now }];
+		if (now === null || now === was) return [];
+		return [{ field, label, was, now }];
 	});
 }

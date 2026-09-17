@@ -229,20 +229,73 @@ describe('what differs from the address book', () => {
 
 	it('shows both values, so the person can answer the question', () => {
 		const state = editorFromQuote(baseQuote());
-		state.vatNumber = '4110998877';
+		state.name = 'Fynbos Interiors (Pty) Ltd';
 
 		expect(differencesFromRecord(state, record)).toEqual([
-			{ field: 'vatNumber', label: 'VAT number', was: null, now: '4110998877' }
+			{
+				field: 'name',
+				label: 'Client name',
+				was: 'Fynbos Interiors',
+				now: 'Fynbos Interiors (Pty) Ltd'
+			}
 		]);
 	});
 
-	it('treats clearing a field as a difference', () => {
+	/**
+	 * SPA-37. This used to be offered — "Was Renske Malan · now empty", with a button that
+	 * writes it. Clearing a field on one document is a normal draft state and says nothing
+	 * about the address book, so it is not something to offer to copy onto a record every
+	 * other document reads from.
+	 */
+	it('never offers to clear a field on the address book', () => {
 		const state = editorFromQuote(baseQuote());
 		state.contactPerson = '';
 
+		expect(differencesFromRecord(state, record)).toEqual([]);
+	});
+
+	/**
+	 * SPA-37, the reported case: a quote whose client snapshot was blanked by the save that
+	 * chose the client. Every field is empty against a populated record, and the ask fired on
+	 * every focus change proposing to blank the customer's name, email and phone at once.
+	 */
+	it('says nothing about a draft whose client fields are all empty', () => {
+		const state = editorFromQuote(baseQuote());
+		state.name = '';
+		state.contactPerson = '';
+		state.email = '';
+		state.phone = '';
+
+		expect(differencesFromRecord(state, record)).toEqual([]);
+	});
+
+	it('still offers a real edit made alongside a cleared field', () => {
+		const state = editorFromQuote(baseQuote());
+		state.contactPerson = '';
+		state.name = 'Fynbos Interiors (Pty) Ltd';
+
 		expect(differencesFromRecord(state, record)).toEqual([
-			{ field: 'contactPerson', label: 'Contact person', was: 'Renske Malan', now: null }
+			{
+				field: 'name',
+				label: 'Client name',
+				was: 'Fynbos Interiors',
+				now: 'Fynbos Interiors (Pty) Ltd'
+			}
 		]);
+	});
+
+	/**
+	 * SPA-37. The seven snapshot fields are not editable anywhere in this editor, so a
+	 * difference on one of them is not this person's edit — it means somebody corrected the
+	 * customer's own screen since this quote took its snapshot. Offering it back, ticked by
+	 * default, would be a button that reverts their correction and calls it this person's.
+	 */
+	it('says nothing about a field the editor cannot type into', () => {
+		const state = editorFromQuote(baseQuote());
+		// What a stale snapshot looks like: the record has since been corrected elsewhere.
+		const corrected = { ...record, email: 'accounts@fynbosinteriors.co.za', phone: '021 447 9900' };
+
+		expect(differencesFromRecord(state, corrected)).toEqual([]);
 	});
 });
 

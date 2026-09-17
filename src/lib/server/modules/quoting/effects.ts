@@ -155,25 +155,43 @@ export async function saveDraft(
 	// Choosing a client for the first time takes the snapshot. Choosing a DIFFERENT one
 	// retakes it — the document is now for somebody else, and carrying the previous client's
 	// address across would be worse than any edit it might overwrite.
-	if (patch.customerId && patch.customerId !== header.customerId) {
+	const chose = Boolean(patch.customerId) && patch.customerId !== header.customerId;
+	if (chose && patch.customerId) {
 		await copyCustomerOntoQuote(tx, quoteId, patch.customerId);
 	}
+
+	/**
+	 * The snapshot wins on the save that took it.
+	 *
+	 * This patch was composed BEFORE the pick — it carries whatever the form held for the
+	 * previous client, which on a draft that had no client yet is nine empty fields. Writing
+	 * it here would erase the snapshot one statement after `copyCustomerOntoQuote` took it,
+	 * and the quote would then claim its client has no email and no phone. Nobody typed that:
+	 * the pick is not an edit of the client's details, so this save has nothing to say about
+	 * them. The next save carries what the form was re-seeded with and writes normally.
+	 */
+	const snapshot = chose
+		? {}
+		: {
+				customerName: patch.customer.name,
+				customerContactPerson: patch.customer.contactPerson,
+				customerEmail: patch.customer.email,
+				customerPhone: patch.customer.phone,
+				customerVatNumber: patch.customer.vatNumber,
+				customerAddressLine1: patch.customer.addressLine1,
+				customerAddressLine2: patch.customer.addressLine2,
+				customerCity: patch.customer.city,
+				customerPostalCode: patch.customer.postalCode
+			};
 
 	await tx
 		.update(quote)
 		.set({
 			customerId: patch.customerId,
-			customerName: patch.customer.name,
-			customerContactPerson: patch.customer.contactPerson,
-			customerEmail: patch.customer.email,
-			customerPhone: patch.customer.phone,
-			customerVatNumber: patch.customer.vatNumber,
-			customerAddressLine1: patch.customer.addressLine1,
-			customerAddressLine2: patch.customer.addressLine2,
-			customerCity: patch.customer.city,
-			customerPostalCode: patch.customer.postalCode,
-			sendToName: patch.sendToName,
-			sendToEmail: patch.sendToEmail,
+			...snapshot,
+			// Same reasoning: `copyCustomerOntoQuote` just set these from the address book's
+			// contact, and the patch's are the previous client's.
+			...(chose ? {} : { sendToName: patch.sendToName, sendToEmail: patch.sendToEmail }),
 			validUntil: patch.validUntil,
 			depositRatePpm: patch.deposit.kind === 'rate' ? patch.deposit.ppm : null,
 			depositAmountCents: patch.deposit.kind === 'amount' ? patch.deposit.cents : null
@@ -287,12 +305,21 @@ export async function promoteCustomerFields(
 		postalCode: header.customerPostalCode
 	};
 
-	// `core_customer.name` is NOT NULL and non-blank. A quote whose client name has been
-	// cleared is a legitimate draft state; promoting that emptiness would break every other
-	// document that reads the same customer, so it is skipped rather than refused — the person
-	// asked to save the fields they filled in.
+	/**
+	 * A BLANK IS NEVER PROMOTED.
+	 *
+	 * "Save this to my customer list" means save what is on the document, and an empty field is
+	 * not a value somebody wrote down — it is a quote that does not happen to carry one. This
+	 * used to guard `name` alone, because `core_customer.name` is NOT NULL; every other column
+	 * is nullable, so one press could null the email and phone on a record every other document
+	 * reads from. Emptying a field on the address book is a real thing to want and it belongs
+	 * on the customer's own screen, where it says so.
+	 *
+	 * Skipped rather than refused: the person asked to save the fields they filled in, and the
+	 * ones they did fill in still travel.
+	 */
 	const updates = Object.fromEntries(
-		fields.filter((f) => !(f === 'name' && !source.name)).map((f) => [f, source[f]])
+		fields.filter((f) => source[f] !== null && source[f] !== '').map((f) => [f, source[f]])
 	);
 	if (Object.keys(updates).length === 0) return false;
 

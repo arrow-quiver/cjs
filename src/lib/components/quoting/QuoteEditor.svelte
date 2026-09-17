@@ -167,16 +167,38 @@
 	});
 
 	// ── Saving a client change back to the address book ───────────────────────────────
+	/**
+	 * The address book's version, as this screen now knows it.
+	 *
+	 * Read once from the prop and owned from then on, for the same reason `draft` is: the page
+	 * data does not refresh on a promote, so a load-time prop would still describe the record as
+	 * it was before the press. Every answer moves it — a save writes the promoted values onto it,
+	 * so the comparison that follows finds nothing and the ask stays shut.
+	 */
+	// svelte-ignore state_referenced_locally
+	let record = $state<Readonly<Record<string, string | null>> | null>(customerRecord);
+
 	let askOpen = $state(false);
 	let differences = $state<readonly FieldDifference[]>([]);
-	/** Fields the person has already declined, so they are not asked twice about the same edit. */
-	let declined = $state<string>('');
+	/**
+	 * The last set of differences the person has ALREADY ANSWERED, either way — so neither
+	 * answer is asked again for the same values. Kept for the declining case, where the quote
+	 * legitimately goes on differing from the record; a save makes `record` agree instead, and
+	 * this is belt and braces on top of that.
+	 */
+	let settled = $state<string>('');
 
+	const signatureOf = (found: readonly FieldDifference[]) =>
+		found.map((d) => `${d.field}=${d.now}`).join('|');
+
+	/**
+	 * Asked when the person leaves the client section having typed in it — never on a line item,
+	 * and never twice for the same answered edit.
+	 */
 	function askAboutClientChanges() {
-		if (!customerRecord || !draft.customerId) return;
-		const found = differencesFromRecord(draft, customerRecord);
-		const signature = found.map((d) => `${d.field}=${d.now}`).join('|');
-		if (found.length === 0 || signature === declined) return;
+		if (!record || !draft.customerId) return;
+		const found = differencesFromRecord(draft, record);
+		if (found.length === 0 || signatureOf(found) === settled) return;
 
 		differences = found;
 		askOpen = true;
@@ -184,20 +206,48 @@
 
 	async function promote(fields: readonly string[]) {
 		askOpen = false;
+		const answered = differences;
+		// What was typed goes first, and the promote does not go at all if it did not land.
+		// `promoteCustomerFields` copies from the QUOTE ROW, not from this request — that is what
+		// stops a promotion smuggling a value nobody saw. It also means an unsaved edit would
+		// promote the PREVIOUS saved value while this screen went on believing it had saved the
+		// new one. `flush` reports a failure through `status` rather than by throwing, exactly as
+		// `send` reads it below.
 		await autosave.flush();
+		if (autosave.status === 'error') return;
 		// The ask closes on the press; the activity bar says the save is still on its way.
-		await tracked(
+		const response = await tracked(
 			fetch(promoteEndpoint, {
 				method: 'POST',
 				headers: { 'content-type': 'application/json' },
 				body: JSON.stringify({ fields })
 			})
 		);
+		// Only a save that landed changes what this screen believes. A refusal puts the ask back
+		// up rather than leaving it to a later, unrelated edit to resurface: `edited` in
+		// `WhoItsFor` was spent on the leaving that opened this, so nothing else would bring it
+		// back, and silently dropping what somebody pressed "save" on is the outcome this whole
+		// screen is written to avoid.
+		if (!response.ok) {
+			askOpen = true;
+			return;
+		}
+
+		// The record now says what was saved to it, so the same comparison finds those fields
+		// identical and the ask has nothing left to raise about them.
+		const saved = new Set(fields);
+		record = {
+			...record,
+			...Object.fromEntries(answered.filter((d) => saved.has(d.field)).map((d) => [d.field, d.now]))
+		};
+		// An unticked field was answered too — with "not this one". Settling on what remains
+		// keeps it from being re-asked the moment focus leaves the section again.
+		settled = signatureOf(answered.filter((d) => !saved.has(d.field)));
 	}
 
 	function dismissAsk() {
 		askOpen = false;
-		declined = differences.map((d: FieldDifference) => `${d.field}=${d.now}`).join('|');
+		settled = signatureOf(differences);
 	}
 
 	/**
@@ -206,10 +256,19 @@
 	 * `tick()` first. The new client id is set synchronously, but the autosave only hears about it
 	 * from the `$effect` above, which runs on the next flush. Flushing before that would find nothing
 	 * pending and reload straight away, leaving the choice to a `pagehide` beacon racing the reload.
+	 *
+	 * Then nothing more is sent from this page. The form is still holding the PREVIOUS client's
+	 * details — the server has just re-snapshotted from the address book and this copy is stale
+	 * until the reload re-seeds it — so a save from here would write those stale fields over the
+	 * snapshot. `saveDraft` refuses them on the save that chose the client; it cannot refuse them
+	 * on a later one, because by then the id it is being sent with is the id the quote already
+	 * has. The reload is the only thing that makes this form current again, so it is the only
+	 * thing that happens next.
 	 */
 	async function changeClient() {
 		await tick();
 		await autosave.flush();
+		autosave.stop();
 		globalThis.location.reload();
 	}
 
@@ -259,8 +318,13 @@
 	<div class="flex min-h-0 flex-1">
 		<!-- The form. Scrolls on its own, so the preview stays put beside it. -->
 		<div class="min-w-0 flex-1 overflow-y-auto px-8 py-6">
-			<div class="flex max-w-[720px] flex-col gap-8" onfocusoutcapture={askAboutClientChanges}>
-				<WhoItsFor bind:state={draft} {customers} onclientchange={changeClient} />
+			<div class="flex max-w-[720px] flex-col gap-8">
+				<WhoItsFor
+					bind:state={draft}
+					{customers}
+					onclientchange={changeClient}
+					onleave={askAboutClientChanges}
+				/>
 
 				<LineTable
 					bind:lines={draft.lines}
@@ -302,7 +366,7 @@
 
 <SaveBackDialog
 	bind:open={askOpen}
-	clientName={customerRecord?.name ?? 'your customer list'}
+	clientName={record?.name ?? 'your customer list'}
 	{differences}
 	onsave={promote}
 	ondismiss={dismissAsk}
