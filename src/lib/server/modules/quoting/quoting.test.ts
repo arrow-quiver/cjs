@@ -379,6 +379,94 @@ describe('a customer override', () => {
 		// Not promoted, not written. Promotion is a closed list, chosen by the person.
 		expect(record.city).toBeNull();
 	});
+
+	/**
+	 * SPA-37. The save that CHOOSES a client carried the previous state's customer fields —
+	 * empty, on a draft that had no client yet — and the header update applied them straight
+	 * over the snapshot `copyCustomerOntoQuote` had just taken. The quote then said the client
+	 * had no email and no phone, and the save-back dialog offered to copy that emptiness onto
+	 * the address book.
+	 */
+	it('keeps the snapshot it just took when the client is chosen', async () => {
+		const business = await asThornhill((tx) => loadBusiness(tx, thornhill.id));
+		const cid = await createCustomer(thornhill, 'Bergview Estates');
+		await asThornhill((tx) =>
+			tx
+				.update(customerTable)
+				.set({ email: 'ops@bergview.co.za', phone: '021 555 0100', contactPerson: 'Jason Tester' })
+				.where(eq(customerTable.id, cid))
+		);
+
+		// A draft with no client, so the editor's own customer fields are all empty.
+		const id = await asThornhill((tx) => createDraft(tx, business));
+		await asThornhill((tx) =>
+			saveDraft(
+				tx,
+				thornhill.id,
+				id,
+				patch({
+					customerId: cid,
+					customer: {
+						name: null,
+						contactPerson: null,
+						email: null,
+						phone: null,
+						vatNumber: null,
+						addressLine1: null,
+						addressLine2: null,
+						city: null,
+						postalCode: null
+					}
+				})
+			)
+		);
+
+		const loaded = await asThornhill((tx) => loadQuote(tx, id));
+		expect(loaded!.customer.name).toBe('Bergview Estates');
+		expect(loaded!.customer.email).toBe('ops@bergview.co.za');
+		expect(loaded!.customer.phone).toBe('021 555 0100');
+		expect(loaded!.customer.contactPerson).toBe('Jason Tester');
+	});
+
+	/**
+	 * SPA-37. `promoteCustomerFields` skipped a blank `name` because the column is NOT NULL,
+	 * but let every other field write a null — so one press could blank the email and phone on
+	 * a record every other document reads from. Emptiness is never what "save this" means.
+	 */
+	it('never writes a blank over a value on the address book', async () => {
+		const business = await asThornhill((tx) => loadBusiness(tx, thornhill.id));
+		const cid = await createCustomer(thornhill, 'Stellenbosch Cellars');
+		await asThornhill((tx) =>
+			tx
+				.update(customerTable)
+				.set({ email: 'accounts@stellcellars.co.za', phone: '021 886 4400' })
+				.where(eq(customerTable.id, cid))
+		);
+
+		const id = await asThornhill((tx) => createDraft(tx, business, { customerId: cid }));
+		await asThornhill((tx) =>
+			saveDraft(
+				tx,
+				thornhill.id,
+				id,
+				patch({
+					customerId: cid,
+					customer: { ...patch().customer, email: null, phone: null, city: 'Stellenbosch' }
+				})
+			)
+		);
+
+		await asThornhill((tx) => promoteCustomerFields(tx, id, ['email', 'phone', 'city']));
+
+		const [record] = await asThornhill((tx) =>
+			tx.select().from(customerTable).where(eq(customerTable.id, cid))
+		);
+
+		// The two blanks are skipped; the one real value still travels.
+		expect(record.email).toBe('accounts@stellcellars.co.za');
+		expect(record.phone).toBe('021 886 4400');
+		expect(record.city).toBe('Stellenbosch');
+	});
 });
 
 describe('a client this business cannot see', () => {

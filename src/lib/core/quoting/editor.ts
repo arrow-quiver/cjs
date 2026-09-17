@@ -416,17 +416,24 @@ export function blockersToSending(state: EditorState): readonly string[] {
 }
 
 /**
- * The customer fields that differ from the address book.
+ * The customer fields that differ from the address book, and could be saved back.
  *
  * "Change it here and we'll ask if you want it saved" — this is the ASK. A field is offered
  * for promotion only when it actually differs, so somebody who changed nothing is never
  * interrupted.
+ *
+ * A field the quote has left EMPTY is not a difference here, even when the record has a value.
+ * Clearing a name on one document is a normal draft state and means nothing about the address
+ * book; offering to promote it puts "now empty" in front of somebody with a button that blanks
+ * a record every other document reads from. Emptying a field on the customer list is a real
+ * thing to want, and it belongs on the customer's own screen where it says so.
  */
 export type FieldDifference = {
 	readonly field: string;
 	readonly label: string;
 	readonly was: string | null;
-	readonly now: string | null;
+	/** Never null: a difference is always a value the quote carries and the record could take. */
+	readonly now: string;
 };
 
 const PROMOTABLE_LABELS: readonly (readonly [keyof EditorState & string, string])[] = [
@@ -448,6 +455,7 @@ export function differencesFromRecord(
 	return PROMOTABLE_LABELS.flatMap(([field, label]) => {
 		const now = orNull(String(state[field] ?? ''));
 		const was = record[field] ?? null;
-		return now === was ? [] : [{ field, label, was, now }];
+		if (now === null || now === was) return [];
+		return [{ field, label, was, now }];
 	});
 }

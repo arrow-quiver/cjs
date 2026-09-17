@@ -5,8 +5,9 @@
 	 * The other half of the sentence under the client fields. Three rules, all of them the
 	 * difference between an offer and a trap:
 	 *
-	 *  1. IT ONLY APPEARS WHEN SOMETHING ACTUALLY DIFFERS. `differencesFromRecord` compares the
-	 *     quote against the address book, so somebody who changed nothing is never interrupted.
+	 *  1. IT ONLY APPEARS WHEN SOMETHING WAS ACTUALLY TYPED. `differencesFromRecord` compares the
+	 *     quote against the address book, so somebody who changed nothing is never interrupted —
+	 *     and it never reports an empty field, so nothing here can offer to blank a record.
 	 *
 	 *  2. IT SHOWS BOTH VALUES. "Was X, now Y", per field — because the person is being asked
 	 *     to change a record every other document reads from, and they cannot answer that
@@ -86,7 +87,7 @@
 							<span class="block">{difference.label}</span>
 							<span class="block text-helper text-ink-muted">
 								{difference.was ? `Was ${difference.was}` : 'Was empty'} · now
-								{difference.now ?? 'empty'}
+								{difference.now}
 							</span>
 						</span>
 					</label>
