@@ -3,8 +3,17 @@
  *
  * Until now a merge to main deployed code that assumed tables the deploy never created —
  * `build` is `vite build` and nothing else — so every schema-bearing merge depended on
- * somebody remembering to migrate by hand. This script runs first in Vercel's
- * `buildCommand`, so the schema lands in the same act that ships the code that needs it.
+ * somebody remembering to migrate by hand. This script runs first in the build on both
+ * targets — Vercel's `buildCommand` (vercel.json) and the build step of the Railpack image
+ * Coolify builds (railpack.json) — so the schema lands in the same act that ships the code
+ * that needs it, and a failed migration fails the build before anything replaces the live
+ * version.
+ *
+ * Why not Coolify's deployment hooks: the pre-deployment command runs inside the container
+ * being REPLACED, whose image predates this deploy's migrations, and is skipped on a first
+ * deploy; the post-deployment command runs once the new code is already serving, and Coolify
+ * marks the deploy successful even when it fails. Why not at container start: the running
+ * app would then hold the owner role, which RLS does not apply to (see .env.example).
  *
  * Why not `drizzle-kit migrate`: against Neon it fails silently — spinner, exit code 1,
  * no error text, nothing applied. drizzle-orm's programmatic migrator uses the same

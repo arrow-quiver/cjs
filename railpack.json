@@ -1,0 +1,11 @@
+{
+	"$schema": "https://schema.railpack.com",
+	"steps": {
+		"build": {
+			"commands": ["bun run db:migrate:deploy", "..."]
+		}
+	},
+	"deploy": {
+		"startCommand": "node build"
+	}
+}
