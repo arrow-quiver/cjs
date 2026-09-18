@@ -39,7 +39,7 @@ Both suites run in CI (`.github/workflows/ci.yml`) with no secrets and no databa
 
 ## Deploying
 
-Coolify, with the **Railpack** build pack, is the default target. `railpack.json` is the repo's
+Coolify, with the **Railpack** build pack, is the deploy target. `railpack.json` is the repo's
 half: it runs `db:migrate:deploy` ahead of `vite build` (the WHY is in
 `scripts/migrate-deploy.ts`) and starts the server as `node build` directly, because
 `bun run start` does not pass SIGTERM on, and every redeploy would kill in-flight requests
@@ -53,8 +53,6 @@ instead of draining them. The rest is Coolify settings:
 - **Ports Exposes:** 3000, adapter-node's default `PORT`.
 - **Preview deployments** run the migrator too, with their own variables: point them at a
   preview database or leave them off, never at production's.
-
-Vercel builds too: `VERCEL=1` selects adapter-vercel, and `vercel.json` runs the same migrator.
 
 ## Recreating this project
 
