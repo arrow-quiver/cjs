@@ -7,6 +7,7 @@
 		"dev": "vite dev",
 		"build": "vite build",
 		"preview": "vite preview",
+		"start": "node build",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
@@ -26,6 +27,7 @@
 		"db:seed": "bun run scripts/seed-dev.ts",
 		"db:generate": "drizzle-kit generate",
 		"db:migrate": "drizzle-kit migrate && bun run db:verify",
+		"db:migrate:deploy": "bun run scripts/migrate-deploy.ts",
 		"db:verify": "bun run scripts/invariants.ts",
 		"db:studio": "drizzle-kit studio",
 		"test:money": "vitest run --project pure --coverage.enabled --coverage.include='src/lib/core/money/**' --coverage.exclude='src/lib/core/money/*.test.ts' --coverage.exclude='src/lib/core/money/index.ts'"

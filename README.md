@@ -37,6 +37,23 @@ stylesheet.
 
 Both suites run in CI (`.github/workflows/ci.yml`) with no secrets and no database.
 
+## Deploying
+
+Coolify, with the **Railpack** build pack, is the deploy target. `railpack.json` is the repo's
+half: it runs `db:migrate:deploy` ahead of `vite build` (the WHY is in
+`scripts/migrate-deploy.ts`) and starts the server as `node build` directly, because
+`bun run start` does not pass SIGTERM on, and every redeploy would kill in-flight requests
+instead of draining them. The rest is Coolify settings:
+
+- **Build Command, Start Command:** leave both empty. `railpack.json` sets both and wins over
+  anything typed there, so a value in those fields would only mislead the next reader.
+- **Runtime variables:** `DATABASE_URL`, `ORIGIN` (the public URL; without it every form POST is
+  refused), `BETTER_AUTH_SECRET`, and the optional sign-in and mail pairs from `.env.example`.
+- **`DATABASE_MIGRATION_URL`:** Build time on, Runtime off.
+- **Ports Exposes:** 3000, adapter-node's default `PORT`.
+- **Preview deployments** run the migrator too, with their own variables: point them at a
+  preview database or leave them off, never at production's.
+
 ## Recreating this project
 
 To recreate this project with the same configuration:
